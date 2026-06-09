@@ -330,7 +330,7 @@ export default function DailyUpdates() {
       (e) => !e.task || !e.subtask || !e.description.trim()
     );
     if (incomplete.length > 0) {
-      toast.error("Please fill in task, subtask, and description for all rows before submitting");
+      toast.error("Please fill in task, sub task, and description for all rows before submitting");
       return;
     }
     if (session.entries.length === 0) {
@@ -358,7 +358,7 @@ export default function DailyUpdates() {
 
   const openCreateSubtaskModal = (projectId: string, task: string, entryId: string) => {
     if (!task) {
-      toast.error("Select a task first before creating a subtask");
+      toast.error("Select a task first before creating a sub task");
       return;
     }
     setNewSubtaskName("");
@@ -369,7 +369,7 @@ export default function DailyUpdates() {
     if (!subtaskModal) return;
     const name = newSubtaskName.trim();
     if (!name) {
-      toast.error("Enter a subtask name");
+      toast.error("Enter a sub task name");
       return;
     }
 
@@ -389,7 +389,7 @@ export default function DailyUpdates() {
     updateEntry(subtaskModal.entryId, { subtask: name });
     setSubtaskModal(null);
     setNewSubtaskName("");
-    toast.success("Subtask created and selected");
+    toast.success("Sub task created and selected");
   };
 
   const renderSubtaskCell = (entry: UpdateEntry) => {
@@ -416,12 +416,12 @@ export default function DailyUpdates() {
         }}
       >
         <SelectTrigger className="w-full">
-          <SelectValue placeholder="Select subtask" />
+          <SelectValue placeholder="Select sub task" />
         </SelectTrigger>
         <SelectContent>
           {subtasks.length === 0 && (
             <SelectItem value="__none__" disabled className="text-muted-foreground">
-              No subtasks yet
+              No sub tasks yet
             </SelectItem>
           )}
           {subtasks.map((subtask) => (
@@ -435,7 +435,7 @@ export default function DailyUpdates() {
           >
             <span className="flex items-center gap-1.5">
               <Plus className="w-3.5 h-3.5" />
-              Create subtask
+              Create sub task
             </span>
           </SelectItem>
         </SelectContent>
@@ -677,7 +677,7 @@ export default function DailyUpdates() {
                     <TableRow className="bg-muted/40 hover:bg-muted/40">
                       <TableHead className="font-semibold">Project</TableHead>
                       <TableHead className="font-semibold">Task</TableHead>
-                      <TableHead className="font-semibold">Subtask</TableHead>
+                      <TableHead className="font-semibold">Sub tasks</TableHead>
                       <TableHead className="font-semibold">Description of Task</TableHead>
                       <TableHead className="font-semibold">Hours Spent</TableHead>
                       <TableHead className="font-semibold">Status</TableHead>
@@ -779,14 +779,14 @@ export default function DailyUpdates() {
       >
         <DialogContent className="sm:max-w-md">
           <DialogHeader>
-            <DialogTitle>Create Subtask</DialogTitle>
+            <DialogTitle>Create sub task</DialogTitle>
             <DialogDescription>
-              Add a new subtask under{" "}
+              Add a new sub task under{" "}
               <span className="font-medium text-foreground">{subtaskModal?.task}</span>
             </DialogDescription>
           </DialogHeader>
           <div className="space-y-2 py-2">
-            <Label htmlFor="subtask-name">Subtask name</Label>
+            <Label htmlFor="subtask-name">Sub task name</Label>
             <Input
               id="subtask-name"
               placeholder="e.g. Implement login validation"
@@ -804,7 +804,7 @@ export default function DailyUpdates() {
             <Button variant="outline" onClick={() => setSubtaskModal(null)}>
               Cancel
             </Button>
-            <Button onClick={handleCreateSubtask}>Create Subtask</Button>
+            <Button onClick={handleCreateSubtask}>Create sub task</Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>

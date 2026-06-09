@@ -1,4 +1,4 @@
-import { Fragment, useState } from "react";
+import React, { Fragment, useState } from "react";
 import { addWeeks, format } from "date-fns";
 import { motion, useReducedMotion } from "motion/react";
 import { Card } from "./ui/card";

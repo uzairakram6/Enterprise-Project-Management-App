@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react";
+import React, { useMemo, useState } from "react";
 import { Card } from "./ui/card";
 import { Button } from "./ui/button";
 import { Badge } from "./ui/badge";
@@ -590,7 +590,7 @@ function WeekTaskLineItems({
             <TableRow>
               <TableHead className="w-10 pl-4">#</TableHead>
               <TableHead>Parent task</TableHead>
-              <TableHead>Line item</TableHead>
+              <TableHead>Sub Task</TableHead>
               <TableHead>Owner</TableHead>
               <TableHead>Role</TableHead>
               <TableHead>Status</TableHead>
