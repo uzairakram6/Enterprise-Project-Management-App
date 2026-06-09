@@ -23,6 +23,12 @@ import {
   AlertTriangle,
   XCircle,
 } from "lucide-react";
+import { PROJECTS } from "../data/projects";
+
+const reportProjects = PROJECTS.slice(0, 8).map((project) => ({
+  id: project.name.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, ""),
+  name: project.name,
+}));
 
 interface ViewReportsProps {
   onBack: () => void;
@@ -30,7 +36,7 @@ interface ViewReportsProps {
 
 export default function ViewReports({ onBack }: ViewReportsProps) {
   const [reportType, setReportType] = useState("weekly");
-  const [selectedProject, setSelectedProject] = useState("multi-tenancy");
+  const [selectedProject, setSelectedProject] = useState(reportProjects[0]?.id ?? "sumhuman");
   const [startDate, setStartDate] = useState<Date>(new Date("2026-06-02"));
   const [endDate, setEndDate] = useState<Date>(new Date("2026-06-08"));
   const [showReport, setShowReport] = useState(false);
@@ -71,10 +77,11 @@ export default function ViewReports({ onBack }: ViewReportsProps) {
                 <SelectValue />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="multi-tenancy">Multi-Tenancy Platform</SelectItem>
-                <SelectItem value="customer-portal">Customer Portal Redesign</SelectItem>
-                <SelectItem value="mobile-app">Mobile App Development</SelectItem>
-                <SelectItem value="analytics">Data Analytics Dashboard</SelectItem>
+                {reportProjects.map((project) => (
+                  <SelectItem key={project.id} value={project.id}>
+                    {project.name}
+                  </SelectItem>
+                ))}
                 <SelectItem value="all">All Projects</SelectItem>
               </SelectContent>
             </Select>
@@ -192,7 +199,7 @@ export default function ViewReports({ onBack }: ViewReportsProps) {
             <div>
               <h2 className="text-2xl font-bold mb-2">Weekly Update Report</h2>
               <p className="text-muted-foreground">
-                Multi-Tenancy Platform • Week 23 (June 2-8, 2026)
+                {reportProjects.find((p) => p.id === selectedProject)?.name ?? PROJECTS[0].name} • Week 23 (June 2-8, 2026)
               </p>
             </div>
             <div className="flex gap-2">
@@ -220,7 +227,7 @@ export default function ViewReports({ onBack }: ViewReportsProps) {
             <h3 className="text-xl font-semibold mb-4">Executive Summary</h3>
             <div className="bg-muted/30 p-6 rounded-lg">
               <p className="text-muted-foreground leading-relaxed">
-                The Multi-Tenancy Platform project completed Week 23 with strong performance across
+                The {reportProjects.find((p) => p.id === selectedProject)?.name ?? PROJECTS[0].name} project completed Week 23 with strong performance across
                 all key metrics. The team successfully delivered the tenant isolation middleware and
                 integrated the authentication flow with role-based permissions. All 8 team members
                 maintained 97% update compliance, demonstrating excellent engagement and

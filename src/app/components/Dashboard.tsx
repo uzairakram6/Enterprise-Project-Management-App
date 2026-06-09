@@ -1,34 +1,22 @@
 import { Card } from "./ui/card";
 import { Badge } from "./ui/badge";
 import { Users, FolderKanban, AlertCircle, CheckCircle2 } from "lucide-react";
+import { PROJECTS } from "../data/projects";
 
 const stats = [
-  { label: "Total Projects", value: "24", icon: FolderKanban, trend: "+3 this month", color: "bg-blue-500" },
+  { label: "Total Projects", value: String(PROJECTS.length), icon: FolderKanban, trend: "+3 this month", color: "bg-blue-500" },
   { label: "Active Resources", value: "156", icon: Users, trend: "98% utilized", color: "bg-green-500" },
-  { label: "On Track", value: "18", icon: CheckCircle2, trend: "75% projects", color: "bg-green-500" },
-  { label: "At Risk", value: "6", icon: AlertCircle, trend: "Need attention", color: "bg-amber-500" },
+  { label: "On Track", value: String(PROJECTS.filter((p) => p.status === "green").length), icon: CheckCircle2, trend: "75% projects", color: "bg-green-500" },
+  { label: "At Risk", value: String(PROJECTS.filter((p) => p.status !== "green").length), icon: AlertCircle, trend: "Need attention", color: "bg-amber-500" },
 ];
 
-const allProjects = [
-  { name: "Multi-Tenancy Platform", pm: "Manohar", status: "green", progress: 85, team: 8 },
-  { name: "Customer Portal Redesign", pm: "Aries", status: "green", progress: 92, team: 6 },
-  { name: "Mobile App Development", pm: "Uzair", status: "amber", progress: 68, team: 10 },
-  { name: "Data Analytics Dashboard", pm: "Rohan", status: "green", progress: 78, team: 5 },
-  { name: "API Integration Suite", pm: "Mahnoor", status: "amber", progress: 55, team: 7 },
-  { name: "Cloud Migration", pm: "Sheroz", status: "red", progress: 42, team: 12 },
-  { name: "E-Commerce Platform", pm: "Manohar", status: "green", progress: 91, team: 9 },
-  { name: "AI Chatbot Integration", pm: "Aries", status: "green", progress: 88, team: 4 },
-  { name: "Microservices Architecture", pm: "Uzair", status: "amber", progress: 62, team: 11 },
-  { name: "Payment Gateway", pm: "Rohan", status: "green", progress: 95, team: 5 },
-  { name: "Notification System", pm: "Mahnoor", status: "green", progress: 82, team: 6 },
-  { name: "Search Engine Optimization", pm: "Sheroz", status: "amber", progress: 58, team: 4 },
-  { name: "Security Audit Platform", pm: "Manohar", status: "green", progress: 76, team: 7 },
-  { name: "DevOps Pipeline", pm: "Aries", status: "green", progress: 89, team: 5 },
-  { name: "Monitoring Dashboard", pm: "Uzair", status: "amber", progress: 65, team: 6 },
-  { name: "Backup & Recovery", pm: "Rohan", status: "green", progress: 94, team: 4 },
-  { name: "API Documentation", pm: "Mahnoor", status: "green", progress: 87, team: 3 },
-  { name: "Load Testing Suite", pm: "Sheroz", status: "red", progress: 38, team: 5 },
-];
+const allProjects = PROJECTS.map(({ name, pm, status, progress, team }) => ({
+  name,
+  pm,
+  status,
+  progress,
+  team,
+}));
 
 import { useState } from "react";
 import { Input } from "./ui/input";

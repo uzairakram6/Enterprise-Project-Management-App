@@ -46,51 +46,50 @@ import {
   DialogTitle,
 } from "./ui/dialog";
 import { cn } from "./ui/utils";
+import { PROJECTS } from "../data/projects";
 
 const STORAGE_KEY = "daily-updates-sessions";
 const SUBTASKS_STORAGE_KEY = "daily-updates-subtasks";
 const CREATE_SUBTASK_VALUE = "__create_subtask__";
 const DESC_MAX = 500;
 
-const projects = [
-  {
-    id: "t360",
-    name: "T360 Engine",
-    type: "Internal Project",
-    icon: "🔧",
-    iconBg: "bg-blue-100 text-blue-600",
-  },
-  {
-    id: "crm",
-    name: "CRM System",
-    type: "Client Project",
-    icon: "📊",
-    iconBg: "bg-purple-100 text-purple-600",
-  },
-  {
-    id: "mobile",
-    name: "Mobile App",
-    type: "Client Project",
-    icon: "📱",
-    iconBg: "bg-green-100 text-green-600",
-  },
+const projectIcons = ["🤖", "♻️", "💬", "📅", "🛡️", "📦"];
+const projectBgs = [
+  "bg-blue-100 text-blue-600",
+  "bg-green-100 text-green-600",
+  "bg-purple-100 text-purple-600",
+  "bg-amber-100 text-amber-600",
+  "bg-red-100 text-red-600",
+  "bg-cyan-100 text-cyan-600",
 ];
 
+const projects = PROJECTS.slice(0, 6).map((project, index) => ({
+  id: ["sumhuman", "gts", "bilingual", "friday", "cis-ca", "dmg"][index],
+  name: project.name,
+  type: index < 2 ? "Internal Project" : "Client Project",
+  icon: projectIcons[index],
+  iconBg: projectBgs[index],
+}));
+
 const tasksByProject: Record<string, string[]> = {
-  t360: ["Dashboard Development", "API Integration", "Database Schema", "Bug Fixes", "Workflow Setup"],
-  crm: ["API Integration", "UI Components", "Testing", "Bug Fixes", "Data Migration"],
-  mobile: ["Authentication", "Bug Fixes", "UI Polish", "Push Notifications", "Performance"],
+  sumhuman: ["User Onboarding", "API Integration", "Database Schema", "Bug Fixes", "Workflow Setup"],
+  gts: ["Route Optimization", "Fleet Tracking", "Dispatch UI", "Sensor Integration", "Reporting"],
+  bilingual: ["NLP Pipeline", "Intent Training", "Voice Integration", "Testing", "Deployment"],
+  friday: ["Scheduling Engine", "Calendar Sync", "Notifications", "Mobile UI", "Analytics"],
+  "cis-ca": ["Compliance Rules", "Audit Logs", "Role Management", "Document Vault", "Reporting"],
+  dmg: ["Data Migration", "ETL Pipelines", "Validation Suite", "Rollback Plan", "Monitoring"],
 };
 
 const defaultSubtasksByTask: Record<string, string[]> = {
-  "t360::Dashboard Development": ["Grid layout setup", "Widget integration", "Responsive fixes"],
-  "t360::API Integration": ["Auth endpoints", "Error handling", "Rate limiting"],
-  "t360::Database Schema": ["Tenant columns", "RLS policies", "Migration scripts"],
-  "t360::Bug Fixes": ["UI bugs", "Backend bugs", "Performance fixes"],
-  "crm::API Integration": ["Payment gateway", "Webhook handlers", "Retry logic"],
-  "crm::UI Components": ["Profile card", "Activity timeline", "Form validation"],
-  "mobile::Authentication": ["Login flow", "Token refresh", "Biometric auth"],
-  "mobile::Bug Fixes": ["Crash fixes", "Memory leaks", "UI glitches"],
+  "sumhuman::User Onboarding": ["Signup flow", "Role assignment", "Welcome emails"],
+  "sumhuman::API Integration": ["Auth endpoints", "Error handling", "Rate limiting"],
+  "sumhuman::Database Schema": ["Tenant columns", "RLS policies", "Migration scripts"],
+  "gts::Route Optimization": ["Map API setup", "Algorithm tuning", "Driver app hooks"],
+  "gts::Fleet Tracking": ["GPS ingestion", "Live map UI", "Alert rules"],
+  "bilingual::NLP Pipeline": ["Tokenizer setup", "Language detection", "Response templates"],
+  "friday::Scheduling Engine": ["Recurrence rules", "Conflict detection", "Timezone handling"],
+  "cis-ca::Compliance Rules": ["Policy engine", "Rule editor", "Audit triggers"],
+  "dmg::Data Migration": ["Source mapping", "Batch jobs", "Validation checks"],
 };
 
 function taskKey(projectId: string, task: string) {
@@ -178,7 +177,7 @@ function getDefaultSessions(): Record<string, DailySession> {
       date: yesterday,
       submittedAt: `${yesterday}T18:30:00.000Z`,
       entries: [
-        createEntry("t360", {
+        createEntry("sumhuman", {
           id: "y1",
           task: "Database Schema",
           subtask: "RLS policies",
@@ -186,11 +185,11 @@ function getDefaultSessions(): Record<string, DailySession> {
           hoursSpent: 5,
           status: "submitted",
         }),
-        createEntry("crm", {
+        createEntry("gts", {
           id: "y2",
-          task: "UI Components",
-          subtask: "Profile card",
-          description: "Built customer profile card and activity timeline components.",
+          task: "Route Optimization",
+          subtask: "Map API setup",
+          description: "Integrated routing API and validated fleet dispatch paths.",
           hoursSpent: 3,
           status: "submitted",
         }),

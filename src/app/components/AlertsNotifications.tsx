@@ -14,6 +14,7 @@ import {
   TrendingDown,
   UserX
 } from "lucide-react";
+import { PROJECTS } from "../data/projects";
 
 interface Alert {
   id: number;
@@ -36,7 +37,7 @@ export default function AlertsNotifications() {
       type: "no-update",
       severity: "critical",
       member: "Ahmed Raza",
-      project: "Multi-Tenancy Platform",
+      project: PROJECTS[0].name,
       message: "No daily update for 3 days",
       daysCount: 3,
       lead: "Hamza Khan (PM)",
@@ -48,7 +49,7 @@ export default function AlertsNotifications() {
       type: "same-update",
       severity: "warning",
       member: "Sara Ahmed",
-      project: "Customer Portal Redesign",
+      project: PROJECTS[1].name,
       message: "Same daily update for 3 consecutive days - may be stuck",
       daysCount: 3,
       lastUpdate: "Working on authentication integration",
@@ -61,10 +62,10 @@ export default function AlertsNotifications() {
       type: "stuck-task",
       severity: "warning",
       member: "Usman Khan",
-      project: "Multi-Tenancy Platform",
+      project: PROJECTS[0].name,
       message: "Working on same parent task for 5 days without completion",
       daysCount: 5,
-      lastUpdate: "Multi-Tenancy - API Layer",
+      lastUpdate: "GTS — Route Optimization API",
       lead: "Hamza Khan (PM)",
       status: "active",
       createdAt: "2026-06-07",
@@ -74,7 +75,7 @@ export default function AlertsNotifications() {
       type: "no-update",
       severity: "critical",
       member: "Fatima Malik",
-      project: "Mobile App Development",
+      project: PROJECTS[2].name,
       message: "No daily update for 4 days",
       daysCount: 4,
       lead: "Uzair (PM)",
@@ -89,7 +90,7 @@ export default function AlertsNotifications() {
       type: "same-update",
       severity: "warning",
       member: "Ali Hassan",
-      project: "Multi-Tenancy Platform",
+      project: PROJECTS[0].name,
       message: "Same daily update for 3 consecutive days",
       daysCount: 3,
       lastUpdate: "Database schema implementation",

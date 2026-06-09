@@ -5,6 +5,7 @@ import { Button } from "./ui/button";
 import { Input } from "./ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "./ui/select";
 import { Calendar, User, Search, Clock, CheckCircle2, AlertCircle } from "lucide-react";
+import { PROJECTS } from "../data/projects";
 
 interface Resource {
   id: number;
@@ -25,7 +26,7 @@ const allResources: Resource[] = [
     id: 1,
     name: "Ali Hassan",
     role: "Senior Developer",
-    currentProject: "Multi-Tenancy Platform",
+    currentProject: PROJECTS[0].name,
     availability: "busy",
     freeFrom: "2026-06-15",
     utilizationPercent: 100,
@@ -40,7 +41,7 @@ const allResources: Resource[] = [
     id: 2,
     name: "Sara Ahmed",
     role: "Full Stack Developer",
-    currentProject: "Customer Portal Redesign",
+    currentProject: PROJECTS[1].name,
     availability: "partial",
     freeFrom: null,
     utilizationPercent: 75,
@@ -70,7 +71,7 @@ const allResources: Resource[] = [
     id: 4,
     name: "Fatima Malik",
     role: "Frontend Developer",
-    currentProject: "Mobile App Development",
+    currentProject: PROJECTS[2].name,
     availability: "busy",
     freeFrom: "2026-06-20",
     utilizationPercent: 100,
@@ -85,7 +86,7 @@ const allResources: Resource[] = [
     id: 5,
     name: "Ahmed Raza",
     role: "DevOps Engineer",
-    currentProject: "Cloud Migration",
+    currentProject: PROJECTS[5].name,
     availability: "partial",
     freeFrom: null,
     utilizationPercent: 60,
@@ -115,7 +116,7 @@ const allResources: Resource[] = [
     id: 7,
     name: "Hassan Malik",
     role: "Frontend Developer",
-    currentProject: "API Integration Suite",
+    currentProject: PROJECTS[4].name,
     availability: "busy",
     freeFrom: "2026-06-18",
     utilizationPercent: 95,
@@ -130,7 +131,7 @@ const allResources: Resource[] = [
     id: 8,
     name: "Omar Farooq",
     role: "QA Engineer",
-    currentProject: "Data Analytics Dashboard",
+    currentProject: PROJECTS[3].name,
     availability: "partial",
     freeFrom: null,
     utilizationPercent: 50,

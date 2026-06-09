@@ -23,7 +23,7 @@ interface WeekUpdateViewProps {
 const sampleUpdate = {
   week: 23,
   dateRange: "June 2-8, 2026",
-  projectName: "Multi-Tenancy Platform",
+  projectName: "Sumhuman",
   submittedBy: "Manohar Ali",
   submittedAt: "June 8, 2026 at 5:30 PM",
   approvedBy: "Aries Khan",

@@ -28,6 +28,7 @@ import {
   Flag,
   Workflow,
 } from "lucide-react";
+import { DEFAULT_PROJECT_NAME } from "../data/projects";
 
 interface ProjectSettingsProps {
   onBack: () => void;
@@ -74,14 +75,14 @@ function holidayOrder(date: Date) {
 
 export default function ProjectSettings({
   onBack,
-  projectName = "Multi-Tenancy Platform",
+  projectName = DEFAULT_PROJECT_NAME,
   onManageWorkflows,
 }: ProjectSettingsProps) {
   const [tab, setTab] = useState("general");
 
   // General
   const [name, setName] = useState(projectName);
-  const [code, setCode] = useState("MTP-2026");
+  const [code, setCode] = useState("SUM-2026");
   const [description, setDescription] = useState(
     "Tenant isolation, role-based access, and automated provisioning for enterprise customers.",
   );

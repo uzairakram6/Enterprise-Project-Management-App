@@ -1,4 +1,5 @@
 import { Fragment, useState } from "react";
+import { DEFAULT_PROJECT_NAME } from "../data/projects";
 import { addWeeks, format } from "date-fns";
 import { motion, useReducedMotion } from "motion/react";
 import { Card } from "./ui/card";
@@ -162,7 +163,7 @@ export default function NewProject({ onBack, isEditMode = false }: NewProjectPro
   const [step, setStep] = useState(1);
 
   // Step 1 - Basics
-  const [name, setName] = useState(isEditMode ? "Multi-Tenancy Platform" : "");
+  const [name, setName] = useState(isEditMode ? DEFAULT_PROJECT_NAME : "");
   const [description, setDescription] = useState(
     isEditMode
       ? "Tenant isolation, role-based access, and automated provisioning for enterprise customers."
@@ -239,7 +240,7 @@ export default function NewProject({ onBack, isEditMode = false }: NewProjectPro
             <Label htmlFor="project-name">Project name *</Label>
             <Input
               id="project-name"
-              placeholder="e.g., Multi-Tenancy Platform"
+              placeholder="e.g., Sumhuman"
               value={name}
               onChange={(e) => setName(e.target.value)}
               autoFocus
