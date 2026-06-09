@@ -43,7 +43,6 @@ import {
   Calendar,
   Users,
   GitBranch,
-  FileText,
   Settings,
   CheckCircle2,
   AlertTriangle,
@@ -758,16 +757,6 @@ export default function ProjectDetails({ onBack, onManageWorkflows, onProjectSet
           </div>
         </div>
         <div className="flex gap-2">
-          <Button
-            className="gap-2"
-            onClick={() => {
-              handleWeekSelect(selectedWeek || CURRENT_WEEK);
-              setLineItemEditorOpen(true);
-            }}
-          >
-            <FileText className="w-4 h-4" />
-            Add Update
-          </Button>
           <Button variant="outline" className="gap-2" onClick={onEdit}>
             <Edit2 className="w-4 h-4" />
             Edit Project
