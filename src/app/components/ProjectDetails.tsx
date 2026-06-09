@@ -376,12 +376,12 @@ function WeekBox({
   }${isSelected ? ' (selected)' : ''}`;
 
   const ringClass = isSelected
-    ? 'ring-[3px] ring-offset-2 ring-foreground z-10'
+    ? 'ring-2 ring-primary/50 ring-offset-1'
     : data.isCurrent
-      ? 'ring-2 ring-offset-1 ring-foreground/70'
+      ? 'ring-1 ring-foreground/35 ring-offset-1'
       : '';
 
-  const className = `h-6 w-6 rounded-[4px] transition-all outline-none ${colors[data.status]} ${
+  const className = `flex-1 w-full min-h-5 rounded-[4px] transition-all outline-none ${colors[data.status]} ${
     isClickable ? 'cursor-pointer hover:ring-2 focus-visible:ring-2 focus-visible:ring-offset-1' : ''
   } ${ringClass}`;
 
@@ -850,30 +850,32 @@ export default function ProjectDetails({ onBack, onManageWorkflows, onProjectSet
                 <span>Future</span>
               </div>
               <div className="flex items-center gap-1">
-                <div className="w-2 h-2 rounded-full ring-[3px] ring-offset-1 ring-foreground" />
+                <div className="w-2 h-2 rounded-full ring-2 ring-primary/50 ring-offset-1" />
                 <span>Selected</span>
               </div>
               <div className="flex items-center gap-1">
-                <div className="w-2 h-2 rounded-full ring-2 ring-foreground/70" />
+                <div className="w-2 h-2 rounded-full ring-1 ring-foreground/35" />
                 <span>Current</span>
               </div>
             </div>
           </div>
 
-          <div className="flex gap-1.5">
+          <div className="flex w-full gap-1.5 min-h-[120px]">
             {monthColumns.map((col, ci) => (
-              <div key={ci} className="flex flex-col gap-1.5">
+              <div key={ci} className="flex flex-1 flex-col gap-1.5 min-w-0">
                 <span className="h-4 text-[11px] leading-4 text-muted-foreground text-center">
                   {col.label}
                 </span>
-                {col.weeks.map((w) => (
-                  <WeekBox
-                    key={w.week}
-                    data={w}
-                    isSelected={w.week + 1 === selectedWeek}
-                    onClick={() => handleWeekSelect(w.week + 1)}
-                  />
-                ))}
+                <div className="flex flex-1 flex-col gap-1.5">
+                  {col.weeks.map((w) => (
+                    <WeekBox
+                      key={w.week}
+                      data={w}
+                      isSelected={w.week + 1 === selectedWeek}
+                      onClick={() => handleWeekSelect(w.week + 1)}
+                    />
+                  ))}
+                </div>
               </div>
             ))}
           </div>
