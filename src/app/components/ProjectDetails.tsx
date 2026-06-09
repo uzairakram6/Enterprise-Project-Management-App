@@ -4,6 +4,24 @@ import { Button } from "./ui/button";
 import { Badge } from "./ui/badge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "./ui/tabs";
 import { Separator } from "./ui/separator";
+import { Input } from "./ui/input";
+import { Label } from "./ui/label";
+import { Textarea } from "./ui/textarea";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "./ui/select";
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from "./ui/table";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -35,6 +53,7 @@ import {
   Trash2,
   MoreHorizontal,
   Workflow,
+  Plus,
 } from "lucide-react";
 
 type UserRole = "pm" | "dm" | "em" | "developer" | "admin";
@@ -92,6 +111,160 @@ const milestones = [
   { name: "UAT & Deployment", status: "pending", dueDate: "2026-08-31", progress: 0 },
 ];
 
+type LineItemStatus = "Done" | "Doing" | "At Risk" | "Blocked";
+type WeekStatus = 'green' | 'amber' | 'red' | 'grey';
+
+interface TaskLineItem {
+  parentTask: string;
+  lineItem: string;
+  owner: string;
+  role: string;
+  status: LineItemStatus;
+  hours: string;
+  update: string;
+  blocker: string;
+  nextAction: string;
+}
+
+const weeklyTaskLineItems: Record<number, TaskLineItem[]> = {
+  21: [
+    {
+      parentTask: "Authentication",
+      lineItem: "OAuth callback handling",
+      owner: "Ahmed Khan",
+      role: "Tech Lead",
+      status: "At Risk",
+      hours: "14h",
+      update: "Provider outage caused retry failures in staging.",
+      blocker: "Waiting on provider incident RCA",
+      nextAction: "Add fallback retry path",
+    },
+    {
+      parentTask: "Database Schema",
+      lineItem: "Tenant audit fields",
+      owner: "Fatima Noor",
+      role: "Backend Developer",
+      status: "Done",
+      hours: "10h",
+      update: "Audit columns added and migration reviewed.",
+      blocker: "-",
+      nextAction: "Move to QA verification",
+    },
+  ],
+  22: [
+    {
+      parentTask: "Database Schema",
+      lineItem: "Tenant isolation tables",
+      owner: "Fatima Noor",
+      role: "Backend Developer",
+      status: "Done",
+      hours: "16h",
+      update: "Core schema completed with tenant_id coverage.",
+      blocker: "-",
+      nextAction: "Start RLS policy testing",
+    },
+    {
+      parentTask: "API Layer",
+      lineItem: "Tenant-scoped endpoints",
+      owner: "Ahmed Khan",
+      role: "Tech Lead",
+      status: "Doing",
+      hours: "12h",
+      update: "First tenant-scoped endpoints ready for review.",
+      blocker: "-",
+      nextAction: "Review endpoint contracts",
+    },
+  ],
+  23: [
+    {
+      parentTask: "Database Schema",
+      lineItem: "Tenant ID columns",
+      owner: "Fatima Noor",
+      role: "Backend Developer",
+      status: "Done",
+      hours: "12h",
+      update: "Added tenant_id to users, orders, and billing tables.",
+      blocker: "-",
+      nextAction: "Validate migration rollback",
+    },
+    {
+      parentTask: "Database Schema",
+      lineItem: "RLS policies",
+      owner: "Fatima Noor",
+      role: "Backend Developer",
+      status: "At Risk",
+      hours: "8h",
+      update: "Policy tests pass for standard users but fail for admin role.",
+      blocker: "Admin role access rule unclear",
+      nextAction: "Confirm rule with PM and security",
+    },
+    {
+      parentTask: "API Layer",
+      lineItem: "Tenant middleware",
+      owner: "Ahmed Khan",
+      role: "Tech Lead",
+      status: "Doing",
+      hours: "10h",
+      update: "Tenant context injection is working in staging.",
+      blocker: "-",
+      nextAction: "Add integration coverage",
+    },
+    {
+      parentTask: "Frontend Integration",
+      lineItem: "Tenant switcher UI",
+      owner: "Hassan Malik",
+      role: "Frontend Developer",
+      status: "Blocked",
+      hours: "6h",
+      update: "UI shell is ready but cannot bind data yet.",
+      blocker: "API response contract pending",
+      nextAction: "Confirm contract with backend",
+    },
+  ],
+};
+
+const EMPTY_LINE_ITEM: TaskLineItem = {
+  parentTask: "",
+  lineItem: "",
+  owner: "",
+  role: "",
+  status: "Doing",
+  hours: "",
+  update: "",
+  blocker: "",
+  nextAction: "",
+};
+
+const weeklySummaries: Record<number, {
+  status: WeekStatus;
+  submittedBy: string;
+  dailyCompliance: string;
+  summary: string;
+  nextFocus: string;
+}> = {
+  21: {
+    status: "amber",
+    submittedBy: "Manohar Ali",
+    dailyCompliance: "6 of 8 members submitted",
+    summary: "Authentication work slipped after an OAuth provider outage. Core schema work continued.",
+    nextFocus: "Recover OAuth callback flow and close tenant audit validation.",
+  },
+  22: {
+    status: "green",
+    submittedBy: "Manohar Ali",
+    dailyCompliance: "8 of 8 members submitted",
+    summary: "Database schema implementation completed. Tenant-scoped API endpoints started.",
+    nextFocus: "Review API contracts and start RLS policy testing.",
+  },
+  23: {
+    status: "green",
+    submittedBy: "Manohar Ali",
+    dailyCompliance: "8 of 8 members submitted",
+    summary: "Tenant isolation middleware was merged. Quality is being watched because RLS admin tests need review.",
+    nextFocus: "Finish API integration coverage and unblock the tenant switcher UI.",
+  },
+};
+
 // Project start date used to anchor the weekly timeline (matches the project's start date)
 const PROJECT_START = new Date(2026, 0, 15);
 
@@ -105,8 +278,6 @@ const MONTH_LABELS = [
   'Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun',
   'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec',
 ];
-
-type WeekStatus = 'green' | 'amber' | 'red' | 'grey';
 
 interface WeekData {
   week: number;
@@ -180,6 +351,13 @@ const STATUS_LABEL: Record<WeekStatus, string> = {
   grey: 'Future',
 };
 
+const LINE_ITEM_STATUS_CLASS: Record<LineItemStatus, string> = {
+  Done: "bg-green-500",
+  Doing: "bg-blue-500",
+  "At Risk": "bg-amber-500",
+  Blocked: "bg-red-500",
+};
+
 function WeekBox({ data, onClick }: { data: WeekData; onClick: () => void }) {
   const colors: Record<WeekStatus, string> = {
     green: 'bg-green-500 hover:ring-green-300',
@@ -205,8 +383,267 @@ function WeekBox({ data, onClick }: { data: WeekData; onClick: () => void }) {
   );
 }
 
-export default function ProjectDetails({ onBack, onManageWorkflows, onProjectSettings, onEdit, onDelete, onViewWeekUpdate, userRole = "pm" }: ProjectDetailsProps) {
-  const [activeTab, setActiveTab] = useState("overview");
+function WeekTaskLineItems({
+  weekNumber,
+  weekRange,
+  items,
+  summary,
+  isEditorOpen,
+  draft,
+  canSaveDraft,
+  onOpenEditor,
+  onCancelEditor,
+  onSaveDraft,
+  onDraftChange,
+}: {
+  weekNumber: number;
+  weekRange: string;
+  items: TaskLineItem[];
+  summary: {
+    status: WeekStatus;
+    submittedBy: string;
+    dailyCompliance: string;
+    summary: string;
+    nextFocus: string;
+  };
+  isEditorOpen: boolean;
+  draft: TaskLineItem;
+  canSaveDraft: boolean;
+  onOpenEditor: () => void;
+  onCancelEditor: () => void;
+  onSaveDraft: () => void;
+  onDraftChange: (field: keyof TaskLineItem, value: string) => void;
+}) {
+  const blockedCount = items.filter((item) => item.status === "Blocked").length;
+  const riskCount = items.filter((item) => item.status === "At Risk").length;
+  const totalHours = items.reduce((sum, item) => sum + Number.parseFloat(item.hours), 0);
+  const doneCount = items.filter((item) => item.status === "Done").length;
+  const healthClass = {
+    green: "bg-green-500",
+    amber: "bg-amber-500",
+    red: "bg-red-500",
+    grey: "bg-gray-300",
+  }[summary.status];
+
+  return (
+    <div className="space-y-4">
+      <Card className="p-5">
+        <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
+          <div>
+            <div className="flex flex-wrap items-center gap-2">
+              <h2 className="text-xl">Week {weekNumber} weekly view</h2>
+              <Badge variant="secondary">{weekRange}</Badge>
+              <Badge className={healthClass}>{STATUS_LABEL[summary.status]}</Badge>
+            </div>
+            <p className="mt-1 text-sm text-muted-foreground">
+              {summary.summary}
+            </p>
+          </div>
+          <Button size="sm" onClick={onOpenEditor} className="gap-2">
+            <Plus className="h-4 w-4" />
+            Add line item
+          </Button>
+        </div>
+
+        <div className="mt-5 grid grid-cols-1 gap-3 lg:grid-cols-3">
+          <div className="rounded-lg border p-3">
+            <p className="text-xs text-muted-foreground">Submitted by</p>
+            <p className="mt-1 font-medium">{summary.submittedBy}</p>
+          </div>
+          <div className="rounded-lg border p-3">
+            <p className="text-xs text-muted-foreground">Daily updates</p>
+            <p className="mt-1 font-medium">{summary.dailyCompliance}</p>
+          </div>
+          <div className="rounded-lg border p-3">
+            <p className="text-xs text-muted-foreground">Next focus</p>
+            <p className="mt-1 font-medium">{summary.nextFocus}</p>
+          </div>
+        </div>
+
+        <div className="mt-3 grid grid-cols-2 gap-3 md:grid-cols-5">
+          <div className="rounded-lg border p-3">
+            <p className="text-xs text-muted-foreground">Line items</p>
+            <p className="mt-1 text-2xl font-bold">{items.length}</p>
+          </div>
+          <div className="rounded-lg border p-3">
+            <p className="text-xs text-muted-foreground">Logged hours</p>
+            <p className="mt-1 text-2xl font-bold">{totalHours}h</p>
+          </div>
+          <div className="rounded-lg border p-3">
+            <p className="text-xs text-muted-foreground">Done</p>
+            <p className="mt-1 text-2xl font-bold text-green-600">{doneCount}</p>
+          </div>
+          <div className="rounded-lg border p-3">
+            <p className="text-xs text-muted-foreground">At risk</p>
+            <p className="mt-1 text-2xl font-bold text-amber-600">{riskCount}</p>
+          </div>
+          <div className="rounded-lg border p-3">
+            <p className="text-xs text-muted-foreground">Blocked</p>
+            <p className="mt-1 text-2xl font-bold text-red-600">{blockedCount}</p>
+          </div>
+        </div>
+      </Card>
+
+      {isEditorOpen && (
+        <Card className="p-5">
+          <div className="mb-4 flex flex-col gap-1">
+            <h3 className="text-lg">Add weekly task line item</h3>
+            <p className="text-sm text-muted-foreground">
+              This adds a row to Week {weekNumber}. Use it for task-level progress, blockers, and next action.
+            </p>
+          </div>
+
+          <div className="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-4">
+            <div className="space-y-2">
+              <Label>Parent task *</Label>
+              <Input
+                value={draft.parentTask}
+                onChange={(event) => onDraftChange("parentTask", event.target.value)}
+                placeholder="e.g., API Layer"
+              />
+            </div>
+            <div className="space-y-2">
+              <Label>Line item *</Label>
+              <Input
+                value={draft.lineItem}
+                onChange={(event) => onDraftChange("lineItem", event.target.value)}
+                placeholder="e.g., Tenant middleware"
+              />
+            </div>
+            <div className="space-y-2">
+              <Label>Owner *</Label>
+              <Input
+                value={draft.owner}
+                onChange={(event) => onDraftChange("owner", event.target.value)}
+                placeholder="Team member"
+              />
+            </div>
+            <div className="space-y-2">
+              <Label>Role</Label>
+              <Input
+                value={draft.role}
+                onChange={(event) => onDraftChange("role", event.target.value)}
+                placeholder="Role"
+              />
+            </div>
+            <div className="space-y-2">
+              <Label>Status</Label>
+              <Select
+                value={draft.status}
+                onValueChange={(value: LineItemStatus) => onDraftChange("status", value)}
+              >
+                <SelectTrigger>
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="Doing">Doing</SelectItem>
+                  <SelectItem value="Done">Done</SelectItem>
+                  <SelectItem value="At Risk">At Risk</SelectItem>
+                  <SelectItem value="Blocked">Blocked</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="space-y-2">
+              <Label>Hours</Label>
+              <Input
+                value={draft.hours}
+                onChange={(event) => onDraftChange("hours", event.target.value)}
+                placeholder="e.g., 6"
+              />
+            </div>
+            <div className="space-y-2 xl:col-span-2">
+              <Label>Next action</Label>
+              <Input
+                value={draft.nextAction}
+                onChange={(event) => onDraftChange("nextAction", event.target.value)}
+                placeholder="What happens next?"
+              />
+            </div>
+            <div className="space-y-2 md:col-span-2">
+              <Label>This week update *</Label>
+              <Textarea
+                value={draft.update}
+                onChange={(event) => onDraftChange("update", event.target.value)}
+                rows={3}
+                placeholder="What changed this week?"
+              />
+            </div>
+            <div className="space-y-2 md:col-span-2">
+              <Label>Blocker</Label>
+              <Textarea
+                value={draft.blocker}
+                onChange={(event) => onDraftChange("blocker", event.target.value)}
+                rows={3}
+                placeholder="Use '-' if there is no blocker"
+              />
+            </div>
+          </div>
+
+          <div className="mt-4 flex justify-end gap-2">
+            <Button variant="outline" onClick={onCancelEditor}>
+              Cancel
+            </Button>
+            <Button onClick={onSaveDraft} disabled={!canSaveDraft}>
+              Save line item
+            </Button>
+          </div>
+        </Card>
+      )}
+
+      <Card className="p-0">
+        <Table>
+          <TableHeader>
+            <TableRow>
+              <TableHead className="w-10 pl-4">#</TableHead>
+              <TableHead>Parent task</TableHead>
+              <TableHead>Line item</TableHead>
+              <TableHead>Owner</TableHead>
+              <TableHead>Role</TableHead>
+              <TableHead>Status</TableHead>
+              <TableHead>Hours</TableHead>
+              <TableHead className="min-w-[260px]">This week update</TableHead>
+              <TableHead className="min-w-[220px]">Blocker</TableHead>
+              <TableHead className="min-w-[220px] pr-4">Next action</TableHead>
+            </TableRow>
+          </TableHeader>
+          <TableBody>
+            {items.length === 0 ? (
+              <TableRow>
+                <TableCell colSpan={10} className="h-24 text-center text-muted-foreground">
+                  No task line items recorded for this week yet.
+                </TableCell>
+              </TableRow>
+            ) : (
+              items.map((item, index) => (
+                <TableRow key={`${item.parentTask}-${item.lineItem}`}>
+                  <TableCell className="pl-4 text-muted-foreground">{index + 1}</TableCell>
+                  <TableCell className="font-medium">{item.parentTask}</TableCell>
+                  <TableCell>{item.lineItem}</TableCell>
+                  <TableCell>{item.owner}</TableCell>
+                  <TableCell className="text-muted-foreground">{item.role}</TableCell>
+                  <TableCell>
+                    <Badge className={LINE_ITEM_STATUS_CLASS[item.status]}>{item.status}</Badge>
+                  </TableCell>
+                  <TableCell>{item.hours}</TableCell>
+                  <TableCell className="whitespace-normal text-muted-foreground">{item.update}</TableCell>
+                  <TableCell className="whitespace-normal text-muted-foreground">{item.blocker}</TableCell>
+                  <TableCell className="whitespace-normal pr-4">{item.nextAction}</TableCell>
+                </TableRow>
+              ))
+            )}
+          </TableBody>
+        </Table>
+      </Card>
+    </div>
+  );
+}
+
+export default function ProjectDetails({ onBack, onManageWorkflows, onProjectSettings, onEdit, onDelete, userRole = "pm" }: ProjectDetailsProps) {
+  const [activeTab, setActiveTab] = useState("weekly");
+  const [selectedWeek, setSelectedWeek] = useState<number>(CURRENT_WEEK);
+  const [taskLineItemsByWeek, setTaskLineItemsByWeek] = useState<Record<number, TaskLineItem[]>>(weeklyTaskLineItems);
+  const [lineItemEditorOpen, setLineItemEditorOpen] = useState(false);
+  const [lineItemDraft, setLineItemDraft] = useState<TaskLineItem>(EMPTY_LINE_ITEM);
   const canViewFinancial = userRole !== "developer";
 
   const [deleteOpen, setDeleteOpen] = useState(false);
@@ -214,9 +651,75 @@ export default function ProjectDetails({ onBack, onManageWorkflows, onProjectSet
   const weekData = useMemo(() => generateWeekData(), []);
   const monthColumns = useMemo(() => groupWeeksByMonth(weekData), [weekData]);
   const weeksRemaining = TOTAL_WEEKS - CURRENT_WEEK;
+  const selectedWeekData = weekData.find((week) => week.week + 1 === selectedWeek);
+  const selectedWeekRange = selectedWeekData ? formatRange(selectedWeekData) : "";
+  const selectedTaskLineItems = taskLineItemsByWeek[selectedWeek] ?? [];
+  const selectedWeekSummary =
+    weeklySummaries[selectedWeek] ??
+    {
+      status: selectedWeekData?.status ?? "grey",
+      submittedBy: "Not submitted",
+      dailyCompliance: "No updates submitted",
+      summary: "No weekly summary has been recorded for this week yet.",
+      nextFocus: "Add task line items to build this week's operating view.",
+    };
+  const canSaveLineItem = Boolean(
+    lineItemDraft.parentTask.trim() &&
+      lineItemDraft.lineItem.trim() &&
+      lineItemDraft.owner.trim() &&
+      lineItemDraft.update.trim(),
+  );
 
   const handleDelete = () => {
     onDelete?.();
+  };
+
+  const handleWeekSelect = (weekNumber: number) => {
+    setSelectedWeek(weekNumber);
+    setActiveTab("weekly");
+    setLineItemEditorOpen(false);
+  };
+
+  const handleDraftChange = (field: keyof TaskLineItem, value: string) => {
+    setLineItemDraft((current) => ({
+      ...current,
+      [field]: value,
+    }));
+  };
+
+  const openLineItemEditor = () => {
+    setLineItemEditorOpen(true);
+  };
+
+  const cancelLineItemEditor = () => {
+    setLineItemDraft(EMPTY_LINE_ITEM);
+    setLineItemEditorOpen(false);
+  };
+
+  const saveLineItem = () => {
+    if (!canSaveLineItem) return;
+    const normalizedHours = lineItemDraft.hours.trim();
+    const newLineItem: TaskLineItem = {
+      ...lineItemDraft,
+      parentTask: lineItemDraft.parentTask.trim(),
+      lineItem: lineItemDraft.lineItem.trim(),
+      owner: lineItemDraft.owner.trim(),
+      role: lineItemDraft.role.trim() || "Team Member",
+      hours: normalizedHours
+        ? normalizedHours.endsWith("h")
+          ? normalizedHours
+          : `${normalizedHours}h`
+        : "0h",
+      update: lineItemDraft.update.trim(),
+      blocker: lineItemDraft.blocker.trim() || "-",
+      nextAction: lineItemDraft.nextAction.trim() || "-",
+    };
+    setTaskLineItemsByWeek((current) => ({
+      ...current,
+      [selectedWeek]: [newLineItem, ...(current[selectedWeek] ?? [])],
+    }));
+    setLineItemDraft(EMPTY_LINE_ITEM);
+    setLineItemEditorOpen(false);
   };
 
   return (
@@ -258,7 +761,13 @@ export default function ProjectDetails({ onBack, onManageWorkflows, onProjectSet
           </div>
         </div>
         <div className="flex gap-2">
-          <Button className="gap-2">
+          <Button
+            className="gap-2"
+            onClick={() => {
+              handleWeekSelect(selectedWeek || CURRENT_WEEK);
+              setLineItemEditorOpen(true);
+            }}
+          >
             <FileText className="w-4 h-4" />
             Add Update
           </Button>
@@ -418,7 +927,7 @@ export default function ProjectDetails({ onBack, onManageWorkflows, onProjectSet
                     <WeekBox
                       key={w.week}
                       data={w}
-                      onClick={() => onViewWeekUpdate?.(w.week + 1)}
+                      onClick={() => handleWeekSelect(w.week + 1)}
                     />
                   ))}
                 </div>
@@ -435,15 +944,33 @@ export default function ProjectDetails({ onBack, onManageWorkflows, onProjectSet
       {/* Tabs */}
       <Tabs value={activeTab} onValueChange={setActiveTab}>
         <TabsList>
-          <TabsTrigger value="overview">Overview</TabsTrigger>
+          <TabsTrigger value="weekly">Weekly View</TabsTrigger>
           <TabsTrigger value="team">Team</TabsTrigger>
           <TabsTrigger value="milestones">Milestones</TabsTrigger>
           <TabsTrigger value="updates">Recent Updates</TabsTrigger>
           <TabsTrigger value="escalations">Escalations</TabsTrigger>
+          <TabsTrigger value="info">Info</TabsTrigger>
         </TabsList>
 
-        {/* Overview Tab */}
-        <TabsContent value="overview" className="space-y-6 mt-6">
+        {/* Weekly View Tab */}
+        <TabsContent value="weekly" className="space-y-6 mt-6">
+          <WeekTaskLineItems
+            weekNumber={selectedWeek}
+            weekRange={selectedWeekRange}
+            items={selectedTaskLineItems}
+            summary={selectedWeekSummary}
+            isEditorOpen={lineItemEditorOpen}
+            draft={lineItemDraft}
+            canSaveDraft={canSaveLineItem}
+            onOpenEditor={openLineItemEditor}
+            onCancelEditor={cancelLineItemEditor}
+            onSaveDraft={saveLineItem}
+            onDraftChange={handleDraftChange}
+          />
+        </TabsContent>
+
+        {/* Info Tab */}
+        <TabsContent value="info" className="space-y-6 mt-6">
           <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
             <Card className="lg:col-span-2 p-6">
               <h2 className="text-xl mb-4">Project Description</h2>
@@ -680,7 +1207,7 @@ export default function ProjectDetails({ onBack, onManageWorkflows, onProjectSet
                 <button
                   key={idx}
                   type="button"
-                  onClick={() => onViewWeekUpdate?.(update.week)}
+                  onClick={() => handleWeekSelect(update.week)}
                   aria-label={`View full update for week ${update.week}, ${update.date}`}
                   className="w-full text-left border rounded-lg p-4 transition-colors cursor-pointer hover:bg-accent/50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
                 >
