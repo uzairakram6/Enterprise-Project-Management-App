@@ -355,7 +355,15 @@ const LINE_ITEM_STATUS_CLASS: Record<LineItemStatus, string> = {
   Blocked: "bg-red-500",
 };
 
-function WeekBox({ data, onClick }: { data: WeekData; onClick: () => void }) {
+function WeekBox({
+  data,
+  isSelected,
+  onClick,
+}: {
+  data: WeekData;
+  isSelected: boolean;
+  onClick: () => void;
+}) {
   const colors: Record<WeekStatus, string> = {
     green: 'bg-green-500 hover:ring-green-300',
     amber: 'bg-amber-500 hover:ring-amber-300',
@@ -365,11 +373,17 @@ function WeekBox({ data, onClick }: { data: WeekData; onClick: () => void }) {
   const isClickable = data.status !== 'grey';
   const label = `Week ${data.week + 1}, ${formatRange(data)}, ${STATUS_LABEL[data.status]}${
     data.isCurrent ? ' (current week)' : ''
-  }`;
+  }${isSelected ? ' (selected)' : ''}`;
+
+  const ringClass = isSelected
+    ? 'ring-[3px] ring-offset-2 ring-foreground z-10'
+    : data.isCurrent
+      ? 'ring-2 ring-offset-1 ring-foreground/70'
+      : '';
 
   const className = `h-6 w-6 rounded-[4px] transition-all outline-none ${colors[data.status]} ${
     isClickable ? 'cursor-pointer hover:ring-2 focus-visible:ring-2 focus-visible:ring-offset-1' : ''
-  } ${data.isCurrent ? 'ring-2 ring-offset-1 ring-foreground' : ''}`;
+  } ${ringClass}`;
 
   if (!isClickable) {
     return <div className={className} title={label} aria-hidden="true" />;
@@ -836,7 +850,11 @@ export default function ProjectDetails({ onBack, onManageWorkflows, onProjectSet
                 <span>Future</span>
               </div>
               <div className="flex items-center gap-1">
-                <div className="w-2 h-2 rounded-full ring-2 ring-foreground" />
+                <div className="w-2 h-2 rounded-full ring-[3px] ring-offset-1 ring-foreground" />
+                <span>Selected</span>
+              </div>
+              <div className="flex items-center gap-1">
+                <div className="w-2 h-2 rounded-full ring-2 ring-foreground/70" />
                 <span>Current</span>
               </div>
             </div>
@@ -852,6 +870,7 @@ export default function ProjectDetails({ onBack, onManageWorkflows, onProjectSet
                   <WeekBox
                     key={w.week}
                     data={w}
+                    isSelected={w.week + 1 === selectedWeek}
                     onClick={() => handleWeekSelect(w.week + 1)}
                   />
                 ))}
