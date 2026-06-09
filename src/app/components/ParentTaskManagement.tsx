@@ -8,75 +8,19 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from ".
 import { Calendar } from "./ui/calendar";
 import { Popover, PopoverContent, PopoverTrigger } from "./ui/popover";
 import { Plus, Save, Calendar as CalendarIcon, Edit2, Trash2, CheckCircle2, Users } from "lucide-react";
+import {
+  PARENT_TASK_PROJECTS,
+  PARENT_TASK_TEAM_MEMBERS,
+  type ParentTask,
+} from "../data/parentTasks";
 
-interface ParentTask {
-  id: number;
-  taskName: string;
-  project: string;
-  assignedTo: string[];
-  dueDate: string;
-  priority: "low" | "medium" | "high";
-  description: string;
-  status: "active" | "completed" | "on-hold";
-  createdBy: string;
-  createdDate: string;
+interface ParentTaskManagementProps {
+  tasks: ParentTask[];
+  onTasksChange: (tasks: ParentTask[]) => void;
+  onViewTask: (taskId: number) => void;
 }
 
-const projects = [
-  { id: 1, name: "Multi-Tenancy Platform" },
-  { id: 2, name: "Customer Portal Redesign" },
-  { id: 3, name: "Mobile App Development" },
-  { id: 4, name: "API Gateway Modernization" },
-];
-
-const teamMembers = [
-  "Ali Hassan",
-  "Sara Ahmed",
-  "Usman Khan",
-  "Fatima Malik",
-  "Ahmed Raza",
-  "Zainab Ali",
-];
-
-export default function ParentTaskManagement() {
-  const [tasks, setTasks] = useState<ParentTask[]>([
-    {
-      id: 1,
-      taskName: "Multi-Tenancy - Database Schema",
-      project: "Multi-Tenancy Platform",
-      assignedTo: ["Ali Hassan", "Sara Ahmed"],
-      dueDate: "2026-06-15",
-      priority: "high",
-      description: "Implement tenant isolation at database level with RLS policies",
-      status: "active",
-      createdBy: "Hamza Khan (PM)",
-      createdDate: "2026-06-01",
-    },
-    {
-      id: 2,
-      taskName: "Multi-Tenancy - API Layer",
-      project: "Multi-Tenancy Platform",
-      assignedTo: ["Usman Khan"],
-      dueDate: "2026-06-20",
-      priority: "high",
-      description: "Build API middleware for tenant context injection",
-      status: "active",
-      createdBy: "Hamza Khan (PM)",
-      createdDate: "2026-06-01",
-    },
-    {
-      id: 3,
-      taskName: "Customer Portal - UI Components",
-      project: "Customer Portal Redesign",
-      assignedTo: ["Fatima Malik", "Zainab Ali"],
-      dueDate: "2026-06-18",
-      priority: "medium",
-      description: "Design and implement reusable React components for customer portal",
-      status: "active",
-      createdBy: "Hamza Khan (PM)",
-      createdDate: "2026-06-03",
-    },
-  ]);
+export default function ParentTaskManagement({ tasks, onTasksChange, onViewTask }: ParentTaskManagementProps) {
 
   const [showForm, setShowForm] = useState(false);
   const [editingTask, setEditingTask] = useState<ParentTask | null>(null);
@@ -113,7 +57,7 @@ export default function ParentTaskManagement() {
 
   const handleDelete = (id: number) => {
     if (confirm("Are you sure you want to delete this parent task? All related daily updates will be affected.")) {
-      setTasks(tasks.filter((t) => t.id !== id));
+      onTasksChange(tasks.filter((t) => t.id !== id));
     }
   };
 
@@ -137,9 +81,9 @@ export default function ParentTaskManagement() {
     };
 
     if (editingTask) {
-      setTasks(tasks.map((t) => (t.id === editingTask.id ? taskData : t)));
+      onTasksChange(tasks.map((t) => (t.id === editingTask.id ? taskData : t)));
     } else {
-      setTasks([taskData, ...tasks]);
+      onTasksChange([taskData, ...tasks]);
     }
 
     resetForm();
@@ -188,7 +132,7 @@ export default function ParentTaskManagement() {
         </Card>
         <Card className="p-4">
           <p className="text-sm text-muted-foreground">Team Members</p>
-          <p className="text-2xl font-bold mt-1">{teamMembers.length}</p>
+          <p className="text-2xl font-bold mt-1">{PARENT_TASK_TEAM_MEMBERS.length}</p>
         </Card>
         <Card className="p-4">
           <p className="text-sm text-muted-foreground">Overdue Tasks</p>
@@ -221,7 +165,7 @@ export default function ParentTaskManagement() {
                   <SelectValue placeholder="Select project" />
                 </SelectTrigger>
                 <SelectContent>
-                  {projects.map((project) => (
+                  {PARENT_TASK_PROJECTS.map((project) => (
                     <SelectItem key={project.id} value={project.name}>
                       {project.name}
                     </SelectItem>
@@ -275,7 +219,7 @@ export default function ParentTaskManagement() {
           <div className="mb-4">
             <label className="text-sm font-medium mb-2 block">Assign To *</label>
             <div className="flex flex-wrap gap-2">
-              {teamMembers.map((member) => (
+              {PARENT_TASK_TEAM_MEMBERS.map((member) => (
                 <Badge
                   key={member}
                   variant={selectedMembers.includes(member) ? "default" : "outline"}
@@ -314,7 +258,11 @@ export default function ParentTaskManagement() {
         </h2>
         <div className="space-y-3">
           {activeTasks.map((task) => (
-            <Card key={task.id} className="p-4 hover:shadow-md transition-shadow">
+            <Card
+              key={task.id}
+              className="p-4 hover:shadow-md transition-shadow cursor-pointer"
+              onClick={() => onViewTask(task.id)}
+            >
               <div className="flex items-start justify-between">
                 <div className="flex-1">
                   <div className="flex items-center gap-2 mb-2">
@@ -368,7 +316,10 @@ export default function ParentTaskManagement() {
                   <Button
                     variant="ghost"
                     size="sm"
-                    onClick={() => handleEdit(task)}
+                    onClick={(event) => {
+                      event.stopPropagation();
+                      handleEdit(task);
+                    }}
                     className="text-blue-500 hover:text-blue-600"
                   >
                     <Edit2 className="w-4 h-4" />
@@ -376,7 +327,10 @@ export default function ParentTaskManagement() {
                   <Button
                     variant="ghost"
                     size="sm"
-                    onClick={() => handleDelete(task.id)}
+                    onClick={(event) => {
+                      event.stopPropagation();
+                      handleDelete(task.id);
+                    }}
                     className="text-destructive hover:text-destructive"
                   >
                     <Trash2 className="w-4 h-4" />

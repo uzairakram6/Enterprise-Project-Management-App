@@ -15,10 +15,21 @@ import WeekUpdateView from "./components/WeekUpdateView";
 import ProjectWorkflowSettings from "./components/ProjectWorkflowSettings";
 import DailyUpdates from "./components/DailyUpdates";
 import ParentTaskManagement from "./components/ParentTaskManagement";
+import ParentTaskDetails from "./components/ParentTaskDetails";
+import { INITIAL_PARENT_TASKS, type ParentTask } from "./data/parentTasks";
 import { Toaster } from "./components/ui/sonner";
 
 type Page = "dashboard" | "projects" | "updates" | "daily-updates" | "parent-tasks" | "resources";
-type SubPage = "new-project" | "edit-project" | "project-details" | "view-reports" | "week-update" | "project-workflows" | "project-settings" | null;
+type SubPage =
+  | "new-project"
+  | "edit-project"
+  | "project-details"
+  | "view-reports"
+  | "week-update"
+  | "project-workflows"
+  | "project-settings"
+  | "parent-task-details"
+  | null;
 
 const navigation = [
   { id: "dashboard" as Page, label: "Dashboard", icon: LayoutDashboard },
@@ -36,6 +47,8 @@ export default function App() {
   const [sidebarOpen, setSidebarOpen] = useState(true);
   const [selectedProjectId, setSelectedProjectId] = useState<number | null>(null);
   const [selectedWeekNumber, setSelectedWeekNumber] = useState<number | null>(null);
+  const [selectedParentTaskId, setSelectedParentTaskId] = useState<number | null>(null);
+  const [parentTasks, setParentTasks] = useState<ParentTask[]>(INITIAL_PARENT_TASKS);
   const [userRole, setUserRole] = useState<UserRole>("pm");
 
   const handleNewProject = () => {
@@ -62,6 +75,17 @@ export default function App() {
     setCurrentSubPage(null);
     setSelectedProjectId(null);
     setSelectedWeekNumber(null);
+    setSelectedParentTaskId(null);
+  };
+
+  const handleViewParentTask = (taskId: number) => {
+    setSelectedParentTaskId(taskId);
+    setCurrentSubPage("parent-task-details");
+  };
+
+  const handleBackToParentTasks = () => {
+    setCurrentSubPage(null);
+    setSelectedParentTaskId(null);
   };
 
   const handleManageWorkflows = (projectId: number) => {
@@ -128,6 +152,14 @@ export default function App() {
         />
       );
     }
+    if (currentSubPage === "parent-task-details" && selectedParentTaskId) {
+      const selectedParentTask = parentTasks.find((task) => task.id === selectedParentTaskId);
+      if (!selectedParentTask) {
+        handleBackToParentTasks();
+        return null;
+      }
+      return <ParentTaskDetails task={selectedParentTask} onBack={handleBackToParentTasks} />;
+    }
 
     // Render main pages
     switch (currentPage) {
@@ -147,7 +179,13 @@ export default function App() {
       case "daily-updates":
         return <DailyUpdates />;
       case "parent-tasks":
-        return <ParentTaskManagement />;
+        return (
+          <ParentTaskManagement
+            tasks={parentTasks}
+            onTasksChange={setParentTasks}
+            onViewTask={handleViewParentTask}
+          />
+        );
       case "resources":
         return <ResourceAllocation />;
       default:
