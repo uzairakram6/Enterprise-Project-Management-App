@@ -281,7 +281,7 @@ export default function ParentTaskDetails({ task, onBack }: ParentTaskDetailsPro
           <div className="flex items-center justify-between gap-4 mb-4">
             <div className="flex items-center gap-2">
               <ClipboardList className="w-5 h-5" />
-              <h2 className="text-lg font-semibold">Line Items</h2>
+              <h2 className="text-lg font-semibold">Sub tasks</h2>
             </div>
             <Button size="sm" onClick={openEditor} className="gap-2">
               <Plus className="h-4 w-4" />

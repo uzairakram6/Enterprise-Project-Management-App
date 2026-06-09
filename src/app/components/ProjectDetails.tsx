@@ -99,14 +99,6 @@ const recentUpdates = [
   },
 ];
 
-const milestones = [
-  { name: "Database Schema Design", status: "completed", dueDate: "2026-02-15", progress: 100 },
-  { name: "API Layer Development", status: "in-progress", dueDate: "2026-04-30", progress: 75 },
-  { name: "Frontend Integration", status: "in-progress", dueDate: "2026-06-15", progress: 45 },
-  { name: "Security Audit", status: "pending", dueDate: "2026-07-30", progress: 0 },
-  { name: "UAT & Deployment", status: "pending", dueDate: "2026-08-31", progress: 0 },
-];
-
 type LineItemStatus = "Done" | "Doing" | "At Risk" | "Blocked";
 type WeekStatus = 'green' | 'amber' | 'red' | 'grey';
 
@@ -880,9 +872,7 @@ export default function ProjectDetails({ onBack, onManageWorkflows, onProjectSet
         <TabsList>
           <TabsTrigger value="weekly">Weekly View</TabsTrigger>
           <TabsTrigger value="team">Team</TabsTrigger>
-          <TabsTrigger value="milestones">Milestones</TabsTrigger>
           <TabsTrigger value="updates">Recent Updates</TabsTrigger>
-          <TabsTrigger value="escalations">Escalations</TabsTrigger>
           <TabsTrigger value="info">Info</TabsTrigger>
         </TabsList>
 
@@ -1074,63 +1064,6 @@ export default function ProjectDetails({ onBack, onManageWorkflows, onProjectSet
           </Card>
         </TabsContent>
 
-        {/* Milestones Tab */}
-        <TabsContent value="milestones" className="space-y-6 mt-6">
-          <Card className="p-6">
-            <h2 className="text-xl mb-6">Project Milestones</h2>
-            <div className="space-y-4">
-              {milestones.map((milestone, idx) => (
-                <div key={idx} className="border rounded-lg p-4">
-                  <div className="flex items-start justify-between mb-3">
-                    <div className="flex-1">
-                      <h3 className="font-medium mb-1">{milestone.name}</h3>
-                      <p className="text-sm text-muted-foreground">
-                        Due: {new Date(milestone.dueDate).toLocaleDateString()}
-                      </p>
-                    </div>
-                    <Badge
-                      variant={
-                        milestone.status === "completed"
-                          ? "default"
-                          : milestone.status === "in-progress"
-                          ? "secondary"
-                          : "outline"
-                      }
-                      className={
-                        milestone.status === "completed"
-                          ? "bg-green-500"
-                          : milestone.status === "in-progress"
-                          ? "bg-blue-500"
-                          : ""
-                      }
-                    >
-                      {milestone.status === "completed"
-                        ? "Completed"
-                        : milestone.status === "in-progress"
-                        ? "In Progress"
-                        : "Pending"}
-                    </Badge>
-                  </div>
-                  <div className="space-y-2">
-                    <div className="flex items-center justify-between text-sm">
-                      <span className="text-muted-foreground">Progress</span>
-                      <span>{milestone.progress}%</span>
-                    </div>
-                    <div className="w-full bg-muted rounded-full h-2">
-                      <div
-                        className={`h-2 rounded-full ${
-                          milestone.status === "completed" ? "bg-green-500" : "bg-blue-500"
-                        }`}
-                        style={{ width: `${milestone.progress}%` }}
-                      />
-                    </div>
-                  </div>
-                </div>
-              ))}
-            </div>
-          </Card>
-        </TabsContent>
-
         {/* Updates Tab */}
         <TabsContent value="updates" className="space-y-6 mt-6">
           <Card className="p-6">
@@ -1165,137 +1098,6 @@ export default function ProjectDetails({ onBack, onManageWorkflows, onProjectSet
                   </span>
                 </button>
               ))}
-            </div>
-          </Card>
-        </TabsContent>
-
-        {/* Escalations Tab */}
-        <TabsContent value="escalations" className="space-y-6 mt-6">
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
-            <Card className="p-4">
-              <p className="text-sm text-muted-foreground">Active Escalations</p>
-              <p className="text-2xl font-bold mt-1 text-red-500">2</p>
-            </Card>
-            <Card className="p-4">
-              <p className="text-sm text-muted-foreground">Resolved This Month</p>
-              <p className="text-2xl font-bold mt-1 text-green-500">5</p>
-            </Card>
-            <Card className="p-4">
-              <p className="text-sm text-muted-foreground">Avg Resolution Time</p>
-              <p className="text-2xl font-bold mt-1">2.3 days</p>
-            </Card>
-          </div>
-
-          <Card className="p-6">
-            <h2 className="text-xl mb-6">Active Escalations</h2>
-            <div className="space-y-4">
-              <div className="border border-red-200 rounded-lg p-4 bg-red-50">
-                <div className="flex items-start justify-between mb-2">
-                  <div className="flex-1">
-                    <div className="flex items-center gap-2 mb-1">
-                      <AlertTriangle className="w-5 h-5 text-red-500" />
-                      <h3 className="font-medium">Authentication Module Blocking Production</h3>
-                      <Badge variant="destructive">Critical</Badge>
-                    </div>
-                    <p className="text-sm text-muted-foreground mb-2">
-                      Third-party OAuth provider integration failing in production environment.
-                      Affecting 15% of user login attempts.
-                    </p>
-                    <div className="flex items-center gap-4 text-sm">
-                      <span className="text-muted-foreground">Escalated: 2 days ago</span>
-                      <span className="text-muted-foreground">By: Ahmed Khan</span>
-                      <span className="text-muted-foreground">To: Senior Tech Lead</span>
-                    </div>
-                  </div>
-                </div>
-                <div className="mt-3 pt-3 border-t border-red-200">
-                  <p className="text-sm font-medium mb-1">Latest Update (4 hours ago):</p>
-                  <p className="text-sm text-muted-foreground">
-                    Vendor support has identified the root cause. Waiting for API patch deployment.
-                  </p>
-                </div>
-              </div>
-
-              <div className="border border-amber-200 rounded-lg p-4 bg-amber-50">
-                <div className="flex items-start justify-between mb-2">
-                  <div className="flex-1">
-                    <div className="flex items-center gap-2 mb-1">
-                      <AlertTriangle className="w-5 h-5 text-amber-500" />
-                      <h3 className="font-medium">Database Performance Degradation</h3>
-                      <Badge className="bg-amber-500">High</Badge>
-                    </div>
-                    <p className="text-sm text-muted-foreground mb-2">
-                      Query response times increased by 40% after latest migration. Need immediate optimization.
-                    </p>
-                    <div className="flex items-center gap-4 text-sm">
-                      <span className="text-muted-foreground">Escalated: 1 day ago</span>
-                      <span className="text-muted-foreground">By: Fatima Noor</span>
-                      <span className="text-muted-foreground">To: Database Admin</span>
-                    </div>
-                  </div>
-                </div>
-                <div className="mt-3 pt-3 border-t border-amber-200">
-                  <p className="text-sm font-medium mb-1">Latest Update (1 hour ago):</p>
-                  <p className="text-sm text-muted-foreground">
-                    Added indexes on tenant_id columns. Monitoring performance metrics.
-                  </p>
-                </div>
-              </div>
-            </div>
-          </Card>
-
-          <Card className="p-6">
-            <h2 className="text-xl mb-6">Recently Resolved</h2>
-            <div className="space-y-4">
-              <div className="border rounded-lg p-4">
-                <div className="flex items-start justify-between mb-2">
-                  <div className="flex-1">
-                    <div className="flex items-center gap-2 mb-1">
-                      <CheckCircle2 className="w-5 h-5 text-green-500" />
-                      <h3 className="font-medium">API Rate Limiting Issue</h3>
-                      <Badge className="bg-green-500">Resolved</Badge>
-                    </div>
-                    <p className="text-sm text-muted-foreground mb-2">
-                      Resolved by implementing token bucket algorithm for rate limiting.
-                    </p>
-                    <div className="flex items-center gap-4 text-sm">
-                      <span className="text-muted-foreground">Resolved: 3 days ago</span>
-                      <span className="text-muted-foreground">Resolution time: 1.5 days</span>
-                    </div>
-                  </div>
-                </div>
-              </div>
-
-              <div className="border rounded-lg p-4">
-                <div className="flex items-start justify-between mb-2">
-                  <div className="flex-1">
-                    <div className="flex items-center gap-2 mb-1">
-                      <CheckCircle2 className="w-5 h-5 text-green-500" />
-                      <h3 className="font-medium">Memory Leak in Background Jobs</h3>
-                      <Badge className="bg-green-500">Resolved</Badge>
-                    </div>
-                    <p className="text-sm text-muted-foreground mb-2">
-                      Fixed by properly disposing database connections in worker processes.
-                    </p>
-                    <div className="flex items-center gap-4 text-sm">
-                      <span className="text-muted-foreground">Resolved: 1 week ago</span>
-                      <span className="text-muted-foreground">Resolution time: 3 days</span>
-                    </div>
-                  </div>
-                </div>
-              </div>
-            </div>
-          </Card>
-
-          <Card className="p-4 bg-blue-50 border-blue-200">
-            <div className="flex gap-3">
-              <AlertTriangle className="w-5 h-5 text-blue-600 mt-0.5" />
-              <div className="flex-1">
-                <p className="text-sm text-blue-900">
-                  <strong>Escalation Criteria:</strong> Issues are automatically escalated after 3 days
-                  without resolution, or immediately for critical production blockers.
-                </p>
-              </div>
             </div>
           </Card>
         </TabsContent>
