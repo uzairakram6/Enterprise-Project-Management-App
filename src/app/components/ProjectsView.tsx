@@ -5,6 +5,7 @@ import { Input } from "./ui/input";
 import { Badge } from "./ui/badge";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "./ui/select";
 import { Search, Plus, Calendar, FileText, Eye, ArrowLeft } from "lucide-react";
+import { PROJECTS, type Project } from "../data/projects";
 
 type WeekStatus = "green" | "amber" | "red" | "grey";
 
@@ -22,62 +23,21 @@ const STATUS_LABEL: Record<WeekStatus, string> = {
   grey: "Future",
 };
 
-const projects = [
-  {
-    id: 1,
-    name: "Multi-Tenancy Platform",
-    pm: "Manohar",
-    dm: "Aries",
-    resources: 8,
-    startDate: "2026-01-15",
-    weeks: generateWeekStatuses(23, 0.85),
-  },
-  {
-    id: 2,
-    name: "Customer Portal Redesign",
-    pm: "Aries",
-    dm: "Khalid",
-    resources: 6,
-    startDate: "2026-02-01",
-    weeks: generateWeekStatuses(20, 0.92),
-  },
-  {
-    id: 3,
-    name: "Mobile App Development",
-    pm: "Uzair",
-    dm: "Manohar",
-    resources: 10,
-    startDate: "2025-12-10",
-    weeks: generateWeekStatuses(26, 0.68),
-  },
-  {
-    id: 4,
-    name: "Data Analytics Dashboard",
-    pm: "Rohan",
-    dm: "Aries",
-    resources: 5,
-    startDate: "2026-03-01",
-    weeks: generateWeekStatuses(14, 0.78),
-  },
-  {
-    id: 5,
-    name: "API Integration Suite",
-    pm: "Mahnoor",
-    dm: "Khalid",
-    resources: 7,
-    startDate: "2026-02-15",
-    weeks: generateWeekStatuses(17, 0.55),
-  },
-  {
-    id: 6,
-    name: "Cloud Migration",
-    pm: "Sheroz",
-    dm: "Manohar",
-    resources: 12,
-    startDate: "2025-11-20",
-    weeks: generateWeekStatuses(30, 0.42),
-  },
-];
+function projectToCard(project: Project, weeks: WeekStatus[]) {
+  return {
+    id: project.id,
+    name: project.name,
+    pm: project.pm,
+    dm: project.dm,
+    resources: project.resources,
+    startDate: project.startDate,
+    weeks,
+  };
+}
+
+const projects = PROJECTS.map((project) =>
+  projectToCard(project, generateWeekStatuses(project.currentWeek, project.successRate)),
+);
 
 function generateWeekStatuses(count: number, successRate: number): WeekStatus[] {
   return Array.from({ length: TOTAL_WEEKS }, (_, i) => {

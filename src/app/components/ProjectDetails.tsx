@@ -1,3 +1,4 @@
+import { DEFAULT_PROJECT_NAME } from "../data/projects";
 import { useMemo, useState } from "react";
 import { Card } from "./ui/card";
 import { Button } from "./ui/button";
@@ -722,9 +723,9 @@ export default function ProjectDetails({ onBack, onManageWorkflows, onProjectSet
       {/* Header */}
       <div className="flex items-start justify-between">
         <div>
-          <h1 className="text-3xl mb-3">Multi-Tenancy Platform</h1>
+          <h1 className="text-3xl mb-3">{DEFAULT_PROJECT_NAME}</h1>
           <div className="flex items-center gap-3 mb-3">
-            <Badge variant="secondary">MTP-2026</Badge>
+            <Badge variant="secondary">SUM-2026</Badge>
             <Badge className="bg-green-500">On Track</Badge>
             <Badge variant="outline">Software Development</Badge>
           </div>
@@ -785,7 +786,7 @@ export default function ProjectDetails({ onBack, onManageWorkflows, onProjectSet
           <AlertDialogHeader>
             <AlertDialogTitle>Delete this project?</AlertDialogTitle>
             <AlertDialogDescription>
-              This will permanently delete "Multi-Tenancy Platform" and all of its
+              This will permanently delete "{DEFAULT_PROJECT_NAME}" and all of its
               updates, milestones, and escalations. This action cannot be undone.
             </AlertDialogDescription>
           </AlertDialogHeader>

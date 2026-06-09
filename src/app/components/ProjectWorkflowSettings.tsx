@@ -4,6 +4,7 @@ import { Badge } from "./ui/badge";
 import { Label } from "./ui/label";
 import { Separator } from "./ui/separator";
 import { ArrowLeft, Plus, Settings, Workflow as WorkflowIcon } from "lucide-react";
+import { DEFAULT_PROJECT_NAME } from "../data/projects";
 
 interface ProjectWorkflowSettingsProps {
   onBack: () => void;
@@ -101,7 +102,7 @@ export default function ProjectWorkflowSettings({ onBack }: ProjectWorkflowSetti
         <div>
           <h1 className="text-3xl">Workflow Settings</h1>
           <p className="text-muted-foreground mt-1">
-            Manage workflows for Multi-Tenancy Platform
+            Manage workflows for {DEFAULT_PROJECT_NAME}
           </p>
         </div>
         <Button className="gap-2">

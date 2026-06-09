@@ -14,6 +14,7 @@ import ViewReports from "./components/ViewReports";
 import WeekUpdateView from "./components/WeekUpdateView";
 import ProjectWorkflowSettings from "./components/ProjectWorkflowSettings";
 import DailyUpdates from "./components/DailyUpdates";
+import { DEFAULT_PROJECT_NAME } from "./data/projects";
 import ParentTaskManagement from "./components/ParentTaskManagement";
 import ParentTaskDetails from "./components/ParentTaskDetails";
 import { INITIAL_PARENT_TASKS, type ParentTask } from "./data/parentTasks";
@@ -147,7 +148,7 @@ export default function App() {
       return (
         <WeekUpdateView
           weekNumber={selectedWeekNumber}
-          projectName="Multi-Tenancy Platform"
+          projectName={DEFAULT_PROJECT_NAME}
           onBack={handleBackToMain}
         />
       );

@@ -38,14 +38,13 @@ const resources = [
   { id: 10, name: "Maryam Saeed", role: "Project Manager", team: "Management" },
 ];
 
-const projects = [
-  { id: "multi-tenancy", name: "Multi-Tenancy", color: "bg-blue-500" },
-  { id: "customer-portal", name: "Customer Portal", color: "bg-green-500" },
-  { id: "mobile-app", name: "Mobile App", color: "bg-purple-500" },
-  { id: "analytics", name: "Analytics", color: "bg-orange-500" },
-  { id: "api-suite", name: "API Integration", color: "bg-pink-500" },
-  { id: "cloud-migration", name: "Cloud Migration", color: "bg-cyan-500" },
-];
+import { PROJECTS } from "../data/projects";
+
+const projects = PROJECTS.slice(0, 6).map((project, index) => ({
+  id: ["sumhuman", "gts", "bilingual", "friday", "cis-ca", "dmg"][index],
+  name: project.name,
+  color: ["bg-blue-500", "bg-green-500", "bg-purple-500", "bg-amber-500", "bg-red-500", "bg-cyan-500"][index],
+}));
 
 const weekDays = ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday"] as const;
 const WEEKLY_TARGET = 40;

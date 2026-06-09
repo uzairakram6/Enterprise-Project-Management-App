@@ -23,6 +23,12 @@ import {
   ChevronRight,
   ChevronLeft,
 } from "lucide-react";
+import { PROJECTS } from "../data/projects";
+
+const wizardProjects = PROJECTS.slice(0, 8).map((project) => ({
+  id: project.name.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, ""),
+  name: project.name,
+}));
 
 const allMetrics = [
   { id: "schedule", label: "Schedule", icon: "📅" },
@@ -46,7 +52,7 @@ export default function WeeklyUpdateWizard({ userRole = "pm" }: WeeklyUpdateWiza
     : allMetrics.filter(m => m.id !== "financial" && m.id !== "budget");
   const [step, setStep] = useState(1);
   const [selectedWeek, setSelectedWeek] = useState("23");
-  const [selectedProject, setSelectedProject] = useState("multi-tenancy");
+  const [selectedProject, setSelectedProject] = useState(wizardProjects[0]?.id ?? "sumhuman");
   const [executiveSummary, setExecutiveSummary] = useState("");
   const [metricStatuses, setMetricStatuses] = useState<Record<string, StatusType>>({});
   const [metricDetails, setMetricDetails] = useState<Record<string, { description: string; attachments: string[] }>>({});
@@ -116,10 +122,11 @@ export default function WeeklyUpdateWizard({ userRole = "pm" }: WeeklyUpdateWiza
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="multi-tenancy">Multi-Tenancy Platform</SelectItem>
-                  <SelectItem value="customer-portal">Customer Portal Redesign</SelectItem>
-                  <SelectItem value="mobile-app">Mobile App Development</SelectItem>
-                  <SelectItem value="analytics">Data Analytics Dashboard</SelectItem>
+                  {wizardProjects.map((project) => (
+                    <SelectItem key={project.id} value={project.id}>
+                      {project.name}
+                    </SelectItem>
+                  ))}
                 </SelectContent>
               </Select>
             </div>
@@ -342,7 +349,7 @@ export default function WeeklyUpdateWizard({ userRole = "pm" }: WeeklyUpdateWiza
         <Card className="p-6 space-y-4">
           <div>
             <h3 className="text-sm text-muted-foreground mb-1">Project</h3>
-            <p>Multi-Tenancy Platform</p>
+            <p>{wizardProjects.find((p) => p.id === selectedProject)?.name ?? PROJECTS[0].name}</p>
           </div>
           <Separator />
           <div>
