@@ -42,18 +42,15 @@ import {
   ArrowLeft,
   Calendar,
   Users,
-  DollarSign,
   GitBranch,
   FileText,
   Settings,
-  TrendingUp,
   CheckCircle2,
   AlertTriangle,
   Edit2,
   Trash2,
   MoreHorizontal,
   Workflow,
-  Plus,
 } from "lucide-react";
 
 type UserRole = "pm" | "dm" | "em" | "developer" | "admin";
@@ -391,7 +388,6 @@ function WeekTaskLineItems({
   isEditorOpen,
   draft,
   canSaveDraft,
-  onOpenEditor,
   onCancelEditor,
   onSaveDraft,
   onDraftChange,
@@ -409,7 +405,6 @@ function WeekTaskLineItems({
   isEditorOpen: boolean;
   draft: TaskLineItem;
   canSaveDraft: boolean;
-  onOpenEditor: () => void;
   onCancelEditor: () => void;
   onSaveDraft: () => void;
   onDraftChange: (field: keyof TaskLineItem, value: string) => void;
@@ -428,21 +423,15 @@ function WeekTaskLineItems({
   return (
     <div className="space-y-4">
       <Card className="p-5">
-        <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
-          <div>
-            <div className="flex flex-wrap items-center gap-2">
-              <h2 className="text-xl">Week {weekNumber} weekly view</h2>
-              <Badge variant="secondary">{weekRange}</Badge>
-              <Badge className={healthClass}>{STATUS_LABEL[summary.status]}</Badge>
-            </div>
-            <p className="mt-1 text-sm text-muted-foreground">
-              {summary.summary}
-            </p>
+        <div>
+          <div className="flex flex-wrap items-center gap-2">
+            <h2 className="text-xl">Week {weekNumber} weekly view</h2>
+            <Badge variant="secondary">{weekRange}</Badge>
+            <Badge className={healthClass}>{STATUS_LABEL[summary.status]}</Badge>
           </div>
-          <Button size="sm" onClick={onOpenEditor} className="gap-2">
-            <Plus className="h-4 w-4" />
-            Add line item
-          </Button>
+          <p className="mt-1 text-sm text-muted-foreground">
+            {summary.summary}
+          </p>
         </div>
 
         <div className="mt-5 grid grid-cols-1 gap-3 lg:grid-cols-3">
@@ -644,8 +633,6 @@ export default function ProjectDetails({ onBack, onManageWorkflows, onProjectSet
   const [taskLineItemsByWeek, setTaskLineItemsByWeek] = useState<Record<number, TaskLineItem[]>>(weeklyTaskLineItems);
   const [lineItemEditorOpen, setLineItemEditorOpen] = useState(false);
   const [lineItemDraft, setLineItemDraft] = useState<TaskLineItem>(EMPTY_LINE_ITEM);
-  const canViewFinancial = userRole !== "developer";
-
   const [deleteOpen, setDeleteOpen] = useState(false);
 
   const weekData = useMemo(() => generateWeekData(), []);
@@ -685,10 +672,6 @@ export default function ProjectDetails({ onBack, onManageWorkflows, onProjectSet
       ...current,
       [field]: value,
     }));
-  };
-
-  const openLineItemEditor = () => {
-    setLineItemEditorOpen(true);
   };
 
   const cancelLineItemEditor = () => {
@@ -823,122 +806,63 @@ export default function ProjectDetails({ onBack, onManageWorkflows, onProjectSet
         </AlertDialogContent>
       </AlertDialog>
 
-      {/* Stats and Timeline - Side by Side */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        {/* Left: Stats Boxes */}
-        <div className="space-y-4">
-          <h2 className="text-lg font-semibold">Project Stats</h2>
-          <div className={`grid gap-3 ${canViewFinancial ? 'grid-cols-2' : 'grid-cols-2'}`}>
-            <Card className="p-4">
-              <div className="flex items-center gap-3">
-                <div className="bg-blue-100 p-3 rounded-lg">
-                  <TrendingUp className="w-5 h-5 text-blue-600" />
-                </div>
-                <div>
-                  <p className="text-sm text-muted-foreground">Progress</p>
-                  <p className="text-2xl font-bold">85%</p>
-                </div>
-              </div>
-            </Card>
-
-            <Card className="p-4">
-              <div className="flex items-center gap-3">
-                <div className="bg-green-100 p-3 rounded-lg">
-                  <Users className="w-5 h-5 text-green-600" />
-                </div>
-                <div>
-                  <p className="text-sm text-muted-foreground">Team Size</p>
-                  <p className="text-2xl font-bold">8</p>
-                </div>
-              </div>
-            </Card>
-
-            <Card className="p-4">
-              <div className="flex items-center gap-3">
-                <div className="bg-purple-100 p-3 rounded-lg">
-                  <Calendar className="w-5 h-5 text-purple-600" />
-                </div>
-                <div>
-                  <p className="text-sm text-muted-foreground">Duration</p>
-                  <p className="text-2xl font-bold">23w</p>
-                </div>
-              </div>
-            </Card>
-
-            {canViewFinancial && (
-              <Card className="p-4">
-                <div className="flex items-center gap-3">
-                  <div className="bg-orange-100 p-3 rounded-lg">
-                    <DollarSign className="w-5 h-5 text-orange-600" />
-                  </div>
-                  <div>
-                    <p className="text-sm text-muted-foreground">Budget Used</p>
-                    <p className="text-2xl font-bold">72%</p>
-                  </div>
-                </div>
-              </Card>
-            )}
-          </div>
+      {/* 52 Week Timeline */}
+      <div className="space-y-4">
+        <div className="flex items-baseline justify-between">
+          <h2 className="text-lg font-semibold">52 Week Timeline</h2>
+          <p className="text-sm text-muted-foreground">
+            Week <span className="font-medium text-foreground">{CURRENT_WEEK}</span> of {TOTAL_WEEKS}
+            <span className="mx-1.5">·</span>
+            {weeksRemaining} remaining
+          </p>
         </div>
-
-        {/* Right: 52 Week Timeline */}
-        <div className="space-y-4">
-          <div className="flex items-baseline justify-between">
-            <h2 className="text-lg font-semibold">52 Week Timeline</h2>
-            <p className="text-sm text-muted-foreground">
-              Week <span className="font-medium text-foreground">{CURRENT_WEEK}</span> of {TOTAL_WEEKS}
-              <span className="mx-1.5">·</span>
-              {weeksRemaining} remaining
-            </p>
-          </div>
-          <Card className="p-4">
-            <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
-              <div className="flex gap-3 text-xs text-muted-foreground">
-                <div className="flex items-center gap-1">
-                  <div className="w-2 h-2 bg-green-500 rounded-full" />
-                  <span>On Track</span>
-                </div>
-                <div className="flex items-center gap-1">
-                  <div className="w-2 h-2 bg-amber-500 rounded-full" />
-                  <span>At Risk</span>
-                </div>
-                <div className="flex items-center gap-1">
-                  <div className="w-2 h-2 bg-red-500 rounded-full" />
-                  <span>Delayed</span>
-                </div>
-                <div className="flex items-center gap-1">
-                  <div className="w-2 h-2 bg-gray-200 rounded-full" />
-                  <span>Future</span>
-                </div>
-                <div className="flex items-center gap-1">
-                  <div className="w-2 h-2 rounded-full ring-2 ring-foreground" />
-                  <span>Current</span>
-                </div>
+        <Card className="p-4">
+          <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
+            <div className="flex gap-3 text-xs text-muted-foreground">
+              <div className="flex items-center gap-1">
+                <div className="w-2 h-2 bg-green-500 rounded-full" />
+                <span>On Track</span>
+              </div>
+              <div className="flex items-center gap-1">
+                <div className="w-2 h-2 bg-amber-500 rounded-full" />
+                <span>At Risk</span>
+              </div>
+              <div className="flex items-center gap-1">
+                <div className="w-2 h-2 bg-red-500 rounded-full" />
+                <span>Delayed</span>
+              </div>
+              <div className="flex items-center gap-1">
+                <div className="w-2 h-2 bg-gray-200 rounded-full" />
+                <span>Future</span>
+              </div>
+              <div className="flex items-center gap-1">
+                <div className="w-2 h-2 rounded-full ring-2 ring-foreground" />
+                <span>Current</span>
               </div>
             </div>
+          </div>
 
-            <div className="flex gap-1.5">
-              {monthColumns.map((col, ci) => (
-                <div key={ci} className="flex flex-col gap-1.5">
-                  <span className="h-4 text-[11px] leading-4 text-muted-foreground text-center">
-                    {col.label}
-                  </span>
-                  {col.weeks.map((w) => (
-                    <WeekBox
-                      key={w.week}
-                      data={w}
-                      onClick={() => handleWeekSelect(w.week + 1)}
-                    />
-                  ))}
-                </div>
-              ))}
-            </div>
+          <div className="flex gap-1.5">
+            {monthColumns.map((col, ci) => (
+              <div key={ci} className="flex flex-col gap-1.5">
+                <span className="h-4 text-[11px] leading-4 text-muted-foreground text-center">
+                  {col.label}
+                </span>
+                {col.weeks.map((w) => (
+                  <WeekBox
+                    key={w.week}
+                    data={w}
+                    onClick={() => handleWeekSelect(w.week + 1)}
+                  />
+                ))}
+              </div>
+            ))}
+          </div>
 
-            <p className="mt-3 text-xs text-muted-foreground">
-              Select any week to open its status update.
-            </p>
-          </Card>
-        </div>
+          <p className="mt-3 text-xs text-muted-foreground">
+            Select any week to open its status update.
+          </p>
+        </Card>
       </div>
 
       {/* Tabs */}
@@ -962,7 +886,6 @@ export default function ProjectDetails({ onBack, onManageWorkflows, onProjectSet
             isEditorOpen={lineItemEditorOpen}
             draft={lineItemDraft}
             canSaveDraft={canSaveLineItem}
-            onOpenEditor={openLineItemEditor}
             onCancelEditor={cancelLineItemEditor}
             onSaveDraft={saveLineItem}
             onDraftChange={handleDraftChange}

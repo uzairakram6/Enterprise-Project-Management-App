@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { LayoutDashboard, FolderKanban, Users, Menu, X, ClipboardList, UserCircle } from "lucide-react";
+import { LayoutDashboard, FolderKanban, Users, Menu, X, ClipboardList, UserCircle, ListChecks } from "lucide-react";
 import { Button } from "./components/ui/button";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "./components/ui/select";
 import { Badge } from "./components/ui/badge";
@@ -14,15 +14,17 @@ import ViewReports from "./components/ViewReports";
 import WeekUpdateView from "./components/WeekUpdateView";
 import ProjectWorkflowSettings from "./components/ProjectWorkflowSettings";
 import DailyUpdates from "./components/DailyUpdates";
+import ParentTaskManagement from "./components/ParentTaskManagement";
 import { Toaster } from "./components/ui/sonner";
 
-type Page = "dashboard" | "projects" | "updates" | "daily-updates" | "resources";
+type Page = "dashboard" | "projects" | "updates" | "daily-updates" | "parent-tasks" | "resources";
 type SubPage = "new-project" | "edit-project" | "project-details" | "view-reports" | "week-update" | "project-workflows" | "project-settings" | null;
 
 const navigation = [
   { id: "dashboard" as Page, label: "Dashboard", icon: LayoutDashboard },
   { id: "projects" as Page, label: "Projects", icon: FolderKanban },
   { id: "daily-updates" as Page, label: "Daily Updates", icon: ClipboardList },
+  { id: "parent-tasks" as Page, label: "Parent Tasks", icon: ListChecks },
   { id: "resources" as Page, label: "Resource Allocation", icon: Users },
 ];
 
@@ -144,6 +146,8 @@ export default function App() {
         return <WeeklyUpdateWizard userRole={userRole} />;
       case "daily-updates":
         return <DailyUpdates />;
+      case "parent-tasks":
+        return <ParentTaskManagement />;
       case "resources":
         return <ResourceAllocation />;
       default:
