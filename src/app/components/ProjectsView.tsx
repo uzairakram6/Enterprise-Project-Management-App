@@ -1,10 +1,26 @@
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import { Card } from "./ui/card";
 import { Button } from "./ui/button";
 import { Input } from "./ui/input";
 import { Badge } from "./ui/badge";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "./ui/select";
-import { Search, Plus, Filter, Calendar, FileText, Eye, BarChart3, ArrowLeft } from "lucide-react";
+import { Search, Plus, Calendar, FileText, Eye, ArrowLeft } from "lucide-react";
+
+type WeekStatus = "green" | "amber" | "red" | "grey";
+
+const TOTAL_WEEKS = 52;
+const WEEKS_PER_MONTH = 4;
+const MONTH_LABELS = [
+  "Jan", "Feb", "Mar", "Apr", "May", "Jun",
+  "Jul", "Aug", "Sep", "Oct", "Nov", "Dec",
+];
+
+const STATUS_LABEL: Record<WeekStatus, string> = {
+  green: "On Track",
+  amber: "At Risk",
+  red: "Delayed",
+  grey: "Future",
+};
 
 const projects = [
   {
@@ -63,38 +79,164 @@ const projects = [
   },
 ];
 
-function generateWeekStatuses(count: number, successRate: number) {
-  const statuses = ['green', 'amber', 'red', 'grey'];
-  return Array.from({ length: 52 }, (_, i) => {
+function generateWeekStatuses(count: number, successRate: number): WeekStatus[] {
+  return Array.from({ length: TOTAL_WEEKS }, (_, i) => {
     if (i < count) {
       const rand = Math.random();
-      if (rand < successRate) return 'green';
-      if (rand < successRate + 0.15) return 'amber';
-      return 'red';
+      if (rand < successRate) return "green";
+      if (rand < successRate + 0.15) return "amber";
+      return "red";
     }
-    return 'grey';
+    return "grey";
   });
 }
 
-function WeekBox({ status, week, onClick }: { status: string; week: number; onClick: () => void }) {
-  const colors = {
-    green: 'bg-green-500 hover:bg-green-600',
-    amber: 'bg-amber-500 hover:bg-amber-600',
-    red: 'bg-red-500 hover:bg-red-600',
-    grey: 'bg-gray-200 hover:bg-gray-300',
-  };
+interface WeekBoxData {
+  week: number;
+  status: WeekStatus;
+  isCurrent: boolean;
+}
 
-  // Only clickable if not grey (has data)
-  const isClickable = status !== 'grey';
+function buildWeekGrid(weeks: WeekStatus[], currentWeek: number): WeekBoxData[] {
+  return weeks.map((status, i) => ({
+    week: i,
+    status,
+    isCurrent: i + 1 === currentWeek,
+  }));
+}
+
+function groupWeeksByMonth(weeks: WeekBoxData[]) {
+  const columns: { label: string; weeks: WeekBoxData[] }[] = [];
+  for (let i = 0; i < weeks.length; i += WEEKS_PER_MONTH) {
+    const chunkIndex = i / WEEKS_PER_MONTH;
+    columns.push({
+      label: MONTH_LABELS[chunkIndex % MONTH_LABELS.length],
+      weeks: weeks.slice(i, i + WEEKS_PER_MONTH),
+    });
+  }
+  return columns;
+}
+
+function WeekBox({
+  data,
+  isSelected,
+  onClick,
+}: {
+  data: WeekBoxData;
+  isSelected: boolean;
+  onClick: () => void;
+}) {
+  const colors: Record<WeekStatus, string> = {
+    green: "bg-green-500 hover:ring-green-300",
+    amber: "bg-amber-500 hover:ring-amber-300",
+    red: "bg-red-500 hover:ring-red-300",
+    grey: "bg-gray-200 hover:ring-gray-300",
+  };
+  const isClickable = data.status !== "grey";
+  const label = `Week ${data.week + 1}, ${STATUS_LABEL[data.status]}${
+    data.isCurrent ? " (current week)" : ""
+  }${isSelected ? " (selected)" : ""}`;
+
+  const ringClass = isSelected
+    ? "ring-2 ring-primary/50 ring-offset-1"
+    : data.isCurrent
+      ? "ring-1 ring-foreground/35 ring-offset-1"
+      : "";
+
+  const className = `flex-1 w-full min-h-5 rounded-[4px] transition-all outline-none ${colors[data.status]} ${
+    isClickable ? "cursor-pointer hover:ring-2 focus-visible:ring-2 focus-visible:ring-offset-1" : ""
+  } ${ringClass}`;
+
+  if (!isClickable) {
+    return <div className={className} title={label} aria-hidden="true" />;
+  }
 
   return (
-    <div
-      className={`w-3 h-8 rounded-sm transition-colors ${
-        isClickable ? `${colors[status as keyof typeof colors]} cursor-pointer` : 'bg-gray-200'
-      }`}
-      title={isClickable ? `Week ${week + 1}: ${status} - Click to view update` : `Week ${week + 1}: No data`}
-      onClick={isClickable ? onClick : undefined}
-    />
+    <button type="button" className={className} onClick={onClick} title={label} aria-label={label} />
+  );
+}
+
+function ProjectTimeline({
+  weeks,
+  currentWeek,
+  onWeekClick,
+}: {
+  weeks: WeekStatus[];
+  currentWeek: number;
+  onWeekClick: (weekNumber: number) => void;
+}) {
+  const [selectedWeek, setSelectedWeek] = useState(currentWeek);
+  const weekGrid = useMemo(() => buildWeekGrid(weeks, currentWeek), [weeks, currentWeek]);
+  const monthColumns = useMemo(() => groupWeeksByMonth(weekGrid), [weekGrid]);
+  const weeksRemaining = TOTAL_WEEKS - currentWeek;
+
+  const handleWeekSelect = (weekNumber: number) => {
+    setSelectedWeek(weekNumber);
+    onWeekClick(weekNumber);
+  };
+
+  return (
+    <div className="flex-1 min-w-0 flex flex-col gap-3">
+      <div className="flex items-baseline justify-between">
+        <h4 className="text-sm font-medium">52 Week Timeline</h4>
+        <p className="text-xs text-muted-foreground">
+          Week <span className="font-medium text-foreground">{currentWeek}</span> of {TOTAL_WEEKS}
+          <span className="mx-1.5">·</span>
+          {weeksRemaining} remaining
+        </p>
+      </div>
+
+      <div className="flex flex-wrap gap-3 text-xs text-muted-foreground">
+          <div className="flex items-center gap-1">
+            <div className="w-2 h-2 bg-green-500 rounded-full" />
+            <span>On Track</span>
+          </div>
+          <div className="flex items-center gap-1">
+            <div className="w-2 h-2 bg-amber-500 rounded-full" />
+            <span>At Risk</span>
+          </div>
+          <div className="flex items-center gap-1">
+            <div className="w-2 h-2 bg-red-500 rounded-full" />
+            <span>Delayed</span>
+          </div>
+          <div className="flex items-center gap-1">
+            <div className="w-2 h-2 bg-gray-200 rounded-full" />
+            <span>Future</span>
+          </div>
+          <div className="flex items-center gap-1">
+            <div className="w-2 h-2 rounded-full ring-2 ring-primary/50 ring-offset-1" />
+            <span>Selected</span>
+          </div>
+          <div className="flex items-center gap-1">
+            <div className="w-2 h-2 rounded-full ring-1 ring-foreground/35" />
+            <span>Current</span>
+          </div>
+      </div>
+
+      <div className="flex flex-1 w-full gap-1.5 min-h-[120px]">
+        {monthColumns.map((col, ci) => (
+          <div key={ci} className="flex flex-1 flex-col gap-1.5 min-w-0">
+            <span className="h-4 text-[11px] leading-4 text-muted-foreground text-center">
+              {col.label}
+            </span>
+            <div className="flex flex-1 flex-col gap-1.5">
+              {col.weeks.map((w) => (
+                <WeekBox
+                  key={w.week}
+                  data={w}
+                  isSelected={w.week + 1 === selectedWeek}
+                  onClick={() => handleWeekSelect(w.week + 1)}
+                />
+              ))}
+            </div>
+          </div>
+        ))}
+      </div>
+
+      <p className="text-xs text-muted-foreground">
+        Select any week to open its status update.
+      </p>
+    </div>
   );
 }
 
@@ -170,7 +312,7 @@ export default function ProjectsView({ onNewProject, onViewDetails, onViewReport
         </div>
 
         <Card className="p-6">
-          <div className="flex flex-col lg:flex-row gap-6">
+          <div className="flex flex-col lg:flex-row gap-6 lg:items-stretch min-h-[220px]">
             {/* Project Info */}
             <div className="lg:w-64 flex-shrink-0">
               <h3 className="text-lg mb-2">{project.name}</h3>
@@ -206,41 +348,11 @@ export default function ProjectsView({ onNewProject, onViewDetails, onViewReport
             </div>
 
             {/* 52 Weeks Timeline */}
-            <div className="flex-1">
-              <div className="mb-3 flex items-center justify-between">
-                <h4 className="text-sm">52 Week Timeline</h4>
-                <div className="flex gap-3 text-xs text-muted-foreground">
-                  <div className="flex items-center gap-1">
-                    <div className="w-2 h-2 bg-green-500 rounded-full" />
-                    <span>On Track</span>
-                  </div>
-                  <div className="flex items-center gap-1">
-                    <div className="w-2 h-2 bg-amber-500 rounded-full" />
-                    <span>At Risk</span>
-                  </div>
-                  <div className="flex items-center gap-1">
-                    <div className="w-2 h-2 bg-red-500 rounded-full" />
-                    <span>Delayed</span>
-                  </div>
-                  <div className="flex items-center gap-1">
-                    <div className="w-2 h-2 bg-gray-200 rounded-full" />
-                    <span>Future</span>
-                  </div>
-                </div>
-              </div>
-
-              {/* Week boxes */}
-              <div className="flex gap-1 flex-wrap">
-                {project.weeks.map((status, idx) => (
-                  <WeekBox
-                    key={idx}
-                    status={status}
-                    week={idx}
-                    onClick={() => onWeekClick(project.id, idx + 1)}
-                  />
-                ))}
-              </div>
-            </div>
+            <ProjectTimeline
+              weeks={project.weeks}
+              currentWeek={project.weeks.filter((w) => w !== "grey").length}
+              onWeekClick={(weekNumber) => onWeekClick(project.id, weekNumber)}
+            />
           </div>
         </Card>
       </div>
