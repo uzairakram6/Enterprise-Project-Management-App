@@ -16,6 +16,8 @@ import {
 import { Card } from "./ui/card";
 import { Button } from "./ui/button";
 import { Textarea } from "./ui/textarea";
+import { Input } from "./ui/input";
+import { Label } from "./ui/label";
 import { Badge } from "./ui/badge";
 import {
   Select,
@@ -35,9 +37,19 @@ import {
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "./ui/tabs";
 import { Calendar } from "./ui/calendar";
 import { Popover, PopoverContent, PopoverTrigger } from "./ui/popover";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "./ui/dialog";
 import { cn } from "./ui/utils";
 
 const STORAGE_KEY = "daily-updates-sessions";
+const SUBTASKS_STORAGE_KEY = "daily-updates-subtasks";
+const CREATE_SUBTASK_VALUE = "__create_subtask__";
 const DESC_MAX = 500;
 
 const projects = [
@@ -70,12 +82,58 @@ const tasksByProject: Record<string, string[]> = {
   mobile: ["Authentication", "Bug Fixes", "UI Polish", "Push Notifications", "Performance"],
 };
 
+const defaultSubtasksByTask: Record<string, string[]> = {
+  "t360::Dashboard Development": ["Grid layout setup", "Widget integration", "Responsive fixes"],
+  "t360::API Integration": ["Auth endpoints", "Error handling", "Rate limiting"],
+  "t360::Database Schema": ["Tenant columns", "RLS policies", "Migration scripts"],
+  "t360::Bug Fixes": ["UI bugs", "Backend bugs", "Performance fixes"],
+  "crm::API Integration": ["Payment gateway", "Webhook handlers", "Retry logic"],
+  "crm::UI Components": ["Profile card", "Activity timeline", "Form validation"],
+  "mobile::Authentication": ["Login flow", "Token refresh", "Biometric auth"],
+  "mobile::Bug Fixes": ["Crash fixes", "Memory leaks", "UI glitches"],
+};
+
+function taskKey(projectId: string, task: string) {
+  return `${projectId}::${task}`;
+}
+
+function loadCustomSubtasks(): Record<string, string[]> {
+  try {
+    const raw = localStorage.getItem(SUBTASKS_STORAGE_KEY);
+    if (raw) return JSON.parse(raw);
+  } catch {
+    // ignore
+  }
+  return {};
+}
+
+function saveCustomSubtasks(data: Record<string, string[]>) {
+  try {
+    localStorage.setItem(SUBTASKS_STORAGE_KEY, JSON.stringify(data));
+  } catch {
+    // ignore
+  }
+}
+
+function getSubtasksForTask(
+  projectId: string,
+  task: string,
+  customSubtasks: Record<string, string[]>
+): string[] {
+  if (!task) return [];
+  const key = taskKey(projectId, task);
+  const defaults = defaultSubtasksByTask[key] ?? [];
+  const custom = customSubtasks[key] ?? [];
+  return [...new Set([...defaults, ...custom])];
+}
+
 const hourOptions = [1, 2, 3, 4, 5, 6, 7, 8];
 
 interface UpdateEntry {
   id: string;
   projectId: string;
   task: string;
+  subtask: string;
   description: string;
   hoursSpent: number;
   status: "draft" | "submitted";
@@ -104,6 +162,7 @@ function createEntry(projectId: string, overrides?: Partial<UpdateEntry>): Updat
     id: crypto.randomUUID(),
     projectId,
     task: tasks[0] ?? "",
+    subtask: "",
     description: "",
     hoursSpent: 2,
     status: "draft",
@@ -122,6 +181,7 @@ function getDefaultSessions(): Record<string, DailySession> {
         createEntry("t360", {
           id: "y1",
           task: "Database Schema",
+          subtask: "RLS policies",
           description: "Added tenant_id to users table and implemented row-level security policies.",
           hoursSpent: 5,
           status: "submitted",
@@ -129,6 +189,7 @@ function getDefaultSessions(): Record<string, DailySession> {
         createEntry("crm", {
           id: "y2",
           task: "UI Components",
+          subtask: "Profile card",
           description: "Built customer profile card and activity timeline components.",
           hoursSpent: 3,
           status: "submitted",
@@ -141,7 +202,12 @@ function getDefaultSessions(): Record<string, DailySession> {
 function normalizeSession(raw: Partial<DailySession>, date: string): DailySession {
   return {
     date,
-    entries: Array.isArray(raw.entries) ? raw.entries : [],
+    entries: Array.isArray(raw.entries)
+      ? raw.entries.map((e) => ({
+          ...e,
+          subtask: e.subtask ?? "",
+        }))
+      : [],
     submittedAt: raw.submittedAt,
   };
 }
@@ -180,9 +246,17 @@ function getSessionForDate(
 
 export default function DailyUpdates() {
   const [sessions, setSessions] = useState<Record<string, DailySession>>(() => loadSessions());
+  const [customSubtasks, setCustomSubtasks] = useState<Record<string, string[]>>(() => loadCustomSubtasks());
   const [selectedDate, setSelectedDate] = useState<Date>(new Date());
   const [activeTab, setActiveTab] = useState<"today" | "history">("today");
   const [calendarOpen, setCalendarOpen] = useState(false);
+  const [subtaskModal, setSubtaskModal] = useState<{
+    open: boolean;
+    projectId: string;
+    task: string;
+    entryId: string;
+  } | null>(null);
+  const [newSubtaskName, setNewSubtaskName] = useState("");
 
   const currentKey = dateKey(selectedDate);
   const isViewingToday = isToday(selectedDate);
@@ -252,9 +326,11 @@ export default function DailyUpdates() {
   };
 
   const handleSubmitAll = () => {
-    const incomplete = session.entries.filter((e) => !e.task || !e.description.trim());
+    const incomplete = session.entries.filter(
+      (e) => !e.task || !e.subtask || !e.description.trim()
+    );
     if (incomplete.length > 0) {
-      toast.error("Please fill in task and description for all rows before submitting");
+      toast.error("Please fill in task, subtask, and description for all rows before submitting");
       return;
     }
     if (session.entries.length === 0) {
@@ -280,6 +356,93 @@ export default function DailyUpdates() {
     setSelectedDate((d) => (direction === -1 ? subDays(d, 1) : subDays(d, -1)));
   };
 
+  const openCreateSubtaskModal = (projectId: string, task: string, entryId: string) => {
+    if (!task) {
+      toast.error("Select a task first before creating a subtask");
+      return;
+    }
+    setNewSubtaskName("");
+    setSubtaskModal({ open: true, projectId, task, entryId });
+  };
+
+  const handleCreateSubtask = () => {
+    if (!subtaskModal) return;
+    const name = newSubtaskName.trim();
+    if (!name) {
+      toast.error("Enter a subtask name");
+      return;
+    }
+
+    const key = taskKey(subtaskModal.projectId, subtaskModal.task);
+    const existing = getSubtasksForTask(subtaskModal.projectId, subtaskModal.task, customSubtasks);
+    if (existing.some((s) => s.toLowerCase() === name.toLowerCase())) {
+      toast.error("This subtask already exists");
+      return;
+    }
+
+    const updated = {
+      ...customSubtasks,
+      [key]: [...(customSubtasks[key] ?? []), name],
+    };
+    setCustomSubtasks(updated);
+    saveCustomSubtasks(updated);
+    updateEntry(subtaskModal.entryId, { subtask: name });
+    setSubtaskModal(null);
+    setNewSubtaskName("");
+    toast.success("Subtask created and selected");
+  };
+
+  const renderSubtaskCell = (entry: UpdateEntry) => {
+    const subtasks = getSubtasksForTask(entry.projectId, entry.task, customSubtasks);
+
+    if (isReadOnly) {
+      return <span className="text-sm">{entry.subtask || "—"}</span>;
+    }
+
+    if (!entry.task) {
+      return <span className="text-xs text-muted-foreground">Select task first</span>;
+    }
+
+    return (
+      <Select
+        key={`${entry.id}-${entry.task}-${subtasks.length}`}
+        value={entry.subtask || undefined}
+        onValueChange={(val) => {
+          if (val === CREATE_SUBTASK_VALUE) {
+            openCreateSubtaskModal(entry.projectId, entry.task, entry.id);
+            return;
+          }
+          updateEntry(entry.id, { subtask: val });
+        }}
+      >
+        <SelectTrigger className="w-full">
+          <SelectValue placeholder="Select subtask" />
+        </SelectTrigger>
+        <SelectContent>
+          {subtasks.length === 0 && (
+            <SelectItem value="__none__" disabled className="text-muted-foreground">
+              No subtasks yet
+            </SelectItem>
+          )}
+          {subtasks.map((subtask) => (
+            <SelectItem key={subtask} value={subtask}>
+              {subtask}
+            </SelectItem>
+          ))}
+          <SelectItem
+            value={CREATE_SUBTASK_VALUE}
+            className="text-primary font-medium border-t mt-1 focus:text-primary"
+          >
+            <span className="flex items-center gap-1.5">
+              <Plus className="w-3.5 h-3.5" />
+              Create subtask
+            </span>
+          </SelectItem>
+        </SelectContent>
+      </Select>
+    );
+  };
+
   const renderEntryRow = (entry: UpdateEntry) => {
     const project = projects.find((p) => p.id === entry.projectId)!;
     const tasks = tasksByProject[entry.projectId] ?? [];
@@ -302,7 +465,10 @@ export default function DailyUpdates() {
           {isReadOnly ? (
             <span className="text-sm">{entry.task}</span>
           ) : (
-            <Select value={entry.task} onValueChange={(val) => updateEntry(entry.id, { task: val })}>
+            <Select
+              value={entry.task}
+              onValueChange={(val) => updateEntry(entry.id, { task: val, subtask: "" })}
+            >
               <SelectTrigger className="w-full">
                 <SelectValue placeholder="Select task" />
               </SelectTrigger>
@@ -315,6 +481,10 @@ export default function DailyUpdates() {
               </SelectContent>
             </Select>
           )}
+        </TableCell>
+
+        <TableCell className="align-top py-4 min-w-[160px]">
+          {renderSubtaskCell(entry)}
         </TableCell>
 
         <TableCell className="align-top py-4 min-w-[280px]">
@@ -507,6 +677,7 @@ export default function DailyUpdates() {
                     <TableRow className="bg-muted/40 hover:bg-muted/40">
                       <TableHead className="font-semibold">Project</TableHead>
                       <TableHead className="font-semibold">Task</TableHead>
+                      <TableHead className="font-semibold">Subtask</TableHead>
                       <TableHead className="font-semibold">Description of Task</TableHead>
                       <TableHead className="font-semibold">Hours Spent</TableHead>
                       <TableHead className="font-semibold">Status</TableHead>
@@ -596,6 +767,47 @@ export default function DailyUpdates() {
           )}
         </TabsContent>
       </Tabs>
+
+      <Dialog
+        open={!!subtaskModal?.open}
+        onOpenChange={(open) => {
+          if (!open) {
+            setSubtaskModal(null);
+            setNewSubtaskName("");
+          }
+        }}
+      >
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle>Create Subtask</DialogTitle>
+            <DialogDescription>
+              Add a new subtask under{" "}
+              <span className="font-medium text-foreground">{subtaskModal?.task}</span>
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-2 py-2">
+            <Label htmlFor="subtask-name">Subtask name</Label>
+            <Input
+              id="subtask-name"
+              placeholder="e.g. Implement login validation"
+              value={newSubtaskName}
+              onChange={(e) => setNewSubtaskName(e.target.value)}
+              onKeyDown={(e) => e.key === "Enter" && handleCreateSubtask()}
+            />
+            {subtaskModal && (
+              <p className="text-xs text-muted-foreground">
+                Project: {projects.find((p) => p.id === subtaskModal.projectId)?.name}
+              </p>
+            )}
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setSubtaskModal(null)}>
+              Cancel
+            </Button>
+            <Button onClick={handleCreateSubtask}>Create Subtask</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
