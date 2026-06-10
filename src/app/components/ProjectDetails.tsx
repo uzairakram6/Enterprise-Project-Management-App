@@ -1,5 +1,5 @@
 import { DEFAULT_PROJECT_NAME } from "../data/projects";
-import { useMemo, useState } from "react";
+import React, { useMemo, useState } from "react";
 import { Card } from "./ui/card";
 import { Button } from "./ui/button";
 import { Badge } from "./ui/badge";
@@ -457,7 +457,7 @@ function WeekTaskLineItems({
 
         <div className="mt-3 grid grid-cols-2 gap-3 md:grid-cols-5">
           <div className="rounded-lg border p-3">
-            <p className="text-xs text-muted-foreground">Line items</p>
+            <p className="text-xs text-muted-foreground">Sub tasks</p>
             <p className="mt-1 text-2xl font-bold">{items.length}</p>
           </div>
           <div className="rounded-lg border p-3">
@@ -482,7 +482,7 @@ function WeekTaskLineItems({
       {isEditorOpen && (
         <Card className="p-5">
           <div className="mb-4 flex flex-col gap-1">
-            <h3 className="text-lg">Add weekly task line item</h3>
+            <h3 className="text-lg">Add weekly sub task</h3>
             <p className="text-sm text-muted-foreground">
               This adds a row to Week {weekNumber}. Use it for task-level progress, blockers, and next action.
             </p>
@@ -498,7 +498,7 @@ function WeekTaskLineItems({
               />
             </div>
             <div className="space-y-2">
-              <Label>Line item *</Label>
+              <Label>Sub task *</Label>
               <Input
                 value={draft.lineItem}
                 onChange={(event) => onDraftChange("lineItem", event.target.value)}
@@ -579,7 +579,7 @@ function WeekTaskLineItems({
               Cancel
             </Button>
             <Button onClick={onSaveDraft} disabled={!canSaveDraft}>
-              Save line item
+              Save sub task
             </Button>
           </div>
         </Card>
@@ -591,7 +591,7 @@ function WeekTaskLineItems({
             <TableRow>
               <TableHead className="w-10 pl-4">#</TableHead>
               <TableHead>Parent task</TableHead>
-              <TableHead>Line item</TableHead>
+              <TableHead>Sub task</TableHead>
               <TableHead>Owner</TableHead>
               <TableHead>Role</TableHead>
               <TableHead>Status</TableHead>
@@ -605,7 +605,7 @@ function WeekTaskLineItems({
             {items.length === 0 ? (
               <TableRow>
                 <TableCell colSpan={10} className="h-24 text-center text-muted-foreground">
-                  No task line items recorded for this week yet.
+                  No sub tasks recorded for this week yet.
                 </TableCell>
               </TableRow>
             ) : (
@@ -654,7 +654,7 @@ export default function ProjectDetails({ onBack, onManageWorkflows, onProjectSet
       submittedBy: "Not submitted",
       dailyCompliance: "No updates submitted",
       summary: "No weekly summary has been recorded for this week yet.",
-      nextFocus: "Add task line items to build this week's operating view.",
+      nextFocus: "Add sub tasks to build this week's operating view.",
     };
   const canSaveLineItem = Boolean(
     lineItemDraft.parentTask.trim() &&

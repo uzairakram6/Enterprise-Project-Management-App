@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react";
+import React, { useMemo, useState } from "react";
 import { Card } from "./ui/card";
 import { Button } from "./ui/button";
 import { Badge } from "./ui/badge";
@@ -231,7 +231,7 @@ export default function ParentTaskDetails({ task, onBack }: ParentTaskDetailsPro
           <p className="text-2xl font-bold mt-1">{task.assignedTo.length}</p>
         </Card>
         <Card className="p-4">
-          <p className="text-sm text-muted-foreground">Line Items</p>
+          <p className="text-sm text-muted-foreground">Sub tasks</p>
           <p className="text-2xl font-bold mt-1">{lineItems.length}</p>
         </Card>
         <Card className="p-4">
@@ -285,7 +285,7 @@ export default function ParentTaskDetails({ task, onBack }: ParentTaskDetailsPro
             </div>
             <Button size="sm" onClick={openEditor} className="gap-2">
               <Plus className="h-4 w-4" />
-              Add line item
+              Add sub task
             </Button>
           </div>
 
@@ -300,7 +300,7 @@ export default function ParentTaskDetails({ task, onBack }: ParentTaskDetailsPro
 
               <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
                 <div className="space-y-2">
-                  <Label>Line item *</Label>
+                  <Label>Sub task *</Label>
                   <Input
                     value={draft.lineItem}
                     onChange={(event) => handleDraftChange("lineItem", event.target.value)}
@@ -366,19 +366,19 @@ export default function ParentTaskDetails({ task, onBack }: ParentTaskDetailsPro
                   Cancel
                 </Button>
                 <Button onClick={saveLineItem} disabled={!canSaveDraft}>
-                  Save line item
+                  Save sub task
                 </Button>
               </div>
             </div>
           )}
 
           {lineItems.length === 0 ? (
-            <p className="text-sm text-muted-foreground">No line items recorded for this parent task yet.</p>
+            <p className="text-sm text-muted-foreground">No sub tasks recorded for this parent task yet.</p>
           ) : (
             <Table>
               <TableHeader>
                 <TableRow>
-                  <TableHead>Line item</TableHead>
+                  <TableHead>Sub task</TableHead>
                   <TableHead>Owner</TableHead>
                   <TableHead>Status</TableHead>
                   <TableHead>Hours</TableHead>
@@ -433,7 +433,7 @@ export default function ParentTaskDetails({ task, onBack }: ParentTaskDetailsPro
           <div className="flex gap-3">
             <AlertTriangle className="w-5 h-5 text-amber-600 mt-0.5" />
             <p className="text-sm text-amber-900">
-              One or more line items are at risk. Review blockers and reassign capacity if needed before the due date.
+              One or more sub tasks are at risk. Review blockers and reassign capacity if needed before the due date.
             </p>
           </div>
         </Card>

@@ -1,4 +1,4 @@
-import { Fragment, useState } from "react";
+import React, { Fragment, useState } from "react";
 import { DEFAULT_PROJECT_NAME } from "../data/projects";
 import { addWeeks, format } from "date-fns";
 import { motion, useReducedMotion } from "motion/react";
