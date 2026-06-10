@@ -32,7 +32,9 @@ import DailyUpdates from "./components/DailyUpdates";
 import TaskManagement from "./components/TaskManagement";
 import TaskDetails from "./components/TaskDetails";
 import { INITIAL_TASKS, INITIAL_TASK_UPDATES, type Task } from "./data/tasks";
-import { DEFAULT_PROJECT_NAME } from "./data/projects";
+import { DEFAULT_PROJECT_NAME, getProjectById } from "./data/projects";
+import { getCurrentProjectWeek } from "./data/projectWeeks";
+import { INITIAL_WEEKLY_UPDATES, type WeeklyUpdateRecord } from "./data/weeklyUpdates";
 import ParentTaskManagement from "./components/ParentTaskManagement";
 import ParentTaskDetails from "./components/ParentTaskDetails";
 import { INITIAL_PARENT_TASKS, type ParentTask } from "./data/parentTasks";
@@ -111,6 +113,7 @@ export default function App() {
   const [selectedUserId, setSelectedUserId] = useState<number | null>(null);
   const [selectedRoleId, setSelectedRoleId] = useState<string | null>(null);
   const [activeRoleId, setActiveRoleId] = useState<AppRoleId>("avp");
+  const [weeklyUpdates, setWeeklyUpdates] = useState<WeeklyUpdateRecord[]>(INITIAL_WEEKLY_UPDATES);
 
   const activeRole = useMemo(
     () => findRoleById(activeRoleId, roles),
@@ -250,8 +253,12 @@ export default function App() {
       return <NewProject onBack={handleBackToMain} isEditMode={true} />;
     }
     if (currentSubPage === "project-details") {
+      const projectName =
+        getProjectById(selectedProjectId ?? 1)?.name ?? DEFAULT_PROJECT_NAME;
       return (
         <ProjectDetails
+          projectName={projectName}
+          weeklyUpdates={weeklyUpdates}
           onBack={handleBackToMain}
           onManageWorkflows={() => selectedProjectId && handleManageWorkflows(selectedProjectId)}
           onProjectSettings={() => selectedProjectId && handleProjectSettings(selectedProjectId)}
@@ -359,7 +366,9 @@ export default function App() {
           />
         );
       case "updates":
-        return <WeeklyUpdatesView />;
+        return (
+          <WeeklyUpdatesView updates={weeklyUpdates} onUpdatesChange={setWeeklyUpdates} />
+        );
       case "daily-updates":
         return <DailyUpdates tasks={tasks} onTasksChange={setTasks} />;
       case "tasks":
@@ -478,7 +487,9 @@ export default function App() {
           <div className="flex items-center gap-4">
             <div className="text-right">
               <p className="text-sm text-muted-foreground">Current Week</p>
-              <p className="font-medium">Week 23, 2026</p>
+              <p className="font-medium">
+                Week {getCurrentProjectWeek()}, {new Date().getFullYear()}
+              </p>
             </div>
             <div className="flex items-center gap-2">
               <UserCircle className="w-4 h-4 text-muted-foreground" />

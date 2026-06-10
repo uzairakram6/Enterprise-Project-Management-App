@@ -13,7 +13,7 @@ import {
   FileText,
   Download,
 } from "lucide-react";
-import type { WeeklyUpdateRecord } from "./WeeklyUpdatesView";
+import type { WeeklyUpdateRecord } from "../data/weeklyUpdates";
 
 const STATUS_LABEL: Record<WeeklyUpdateRecord["status"], string> = {
   draft: "Draft",
@@ -39,7 +39,8 @@ const METRIC_LABELS: Record<string, string> = {
 
 interface WeeklyUpdateReportViewProps {
   update: WeeklyUpdateRecord;
-  onBack: () => void;
+  onBack?: () => void;
+  embedded?: boolean;
 }
 
 function metricIcon(status: "green" | "amber" | "red") {
@@ -58,7 +59,11 @@ function metricBadge(status: "green" | "amber" | "red") {
   return <Badge className={item.className}>{item.label}</Badge>;
 }
 
-export default function WeeklyUpdateReportView({ update, onBack }: WeeklyUpdateReportViewProps) {
+export default function WeeklyUpdateReportView({
+  update,
+  onBack,
+  embedded = false,
+}: WeeklyUpdateReportViewProps) {
   const metrics = update.metrics ?? {
     schedule: { status: "green" as const, notes: "All milestones completed on time." },
     delivery: { status: "green" as const, notes: "Sprint deliverables completed successfully." },
@@ -68,13 +73,15 @@ export default function WeeklyUpdateReportView({ update, onBack }: WeeklyUpdateR
   };
 
   return (
-    <div className="mx-auto max-w-4xl space-y-6">
-      <div className="flex items-center gap-4">
-        <Button variant="ghost" size="sm" onClick={onBack} className="gap-2">
-          <ArrowLeft className="h-4 w-4" />
-          Back to updates
-        </Button>
-      </div>
+    <div className={embedded ? "space-y-6" : "mx-auto max-w-4xl space-y-6"}>
+      {!embedded && onBack && (
+        <div className="flex items-center gap-4">
+          <Button variant="ghost" size="sm" onClick={onBack} className="gap-2">
+            <ArrowLeft className="h-4 w-4" />
+            Back to updates
+          </Button>
+        </div>
+      )}
 
       <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
         <div>
