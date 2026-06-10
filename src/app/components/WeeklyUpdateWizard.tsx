@@ -23,12 +23,11 @@ import {
 import { DateField } from "./project/DateField";
 import { PROJECTS } from "../data/projects";
 import {
-  buildProjectWeekOptionFromDate,
-  buildProjectWeekOptions,
-  formatProjectWeekRange,
-  getCurrentProjectWeek,
-} from "../data/projectWeeks";
-import { findWeekOption, type WeekOption } from "../data/weeks";
+  buildWeekOption,
+  buildWeekOptions,
+  findWeekOption,
+  type WeekOption,
+} from "../data/weeks";
 import { toast } from "sonner";
 import { cn } from "./ui/utils";
 import {
@@ -51,7 +50,6 @@ import {
 
 export interface WeeklyUpdateSubmission {
   projectName: string;
-  weekNumber: number;
   weekDate: string;
   summary: string;
   metrics?: Record<string, { status: "green" | "amber" | "red"; notes?: string }>;
@@ -84,23 +82,23 @@ const STATUS_OPTIONS: { value: MetricStatus; label: string; icon: typeof CheckCi
 ];
 
 const DAILY_UPDATES_BY_WEEK: Record<string, { member: string; task: string; subTask: string; hours: number; summary: string }[]> = {
-  "2026-PW21": [
+  "2026-W21": [
     { member: "Manohar Ali", task: "Multi-Tenancy Platform", subTask: "Tenant middleware", hours: 6, summary: "Completed tenant context injection for API routes." },
     { member: "Aries Khan", task: "Multi-Tenancy Platform", subTask: "RLS policies", hours: 5, summary: "Drafted row-level security policies for core tables." },
     { member: "Ahmed Khan", task: "Multi-Tenancy Platform", subTask: "Tenant switcher UI", hours: 7, summary: "Built tenant switcher component with role checks." },
   ],
-  "2026-PW22": [
+  "2026-W22": [
     { member: "Manohar Ali", task: "Multi-Tenancy Platform", subTask: "Migration scripts", hours: 8, summary: "Validated migration scripts on staging data." },
     { member: "Sarah Ali", task: "Multi-Tenancy Platform", subTask: "Admin bypass tests", hours: 6, summary: "Added regression tests for admin bypass flows." },
     { member: "Hassan Malik", task: "Multi-Tenancy Platform", subTask: "OAuth callback handling", hours: 5, summary: "Fixed callback edge cases for multi-tenant login." },
   ],
-  "2026-PW23": [
+  "2026-W23": [
     { member: "Manohar Ali", task: "Multi-Tenancy Platform", subTask: "RLS policies", hours: 7, summary: "Finalized RLS policies and peer review completed." },
     { member: "Aries Khan", task: "Multi-Tenancy Platform", subTask: "Tenant ID columns", hours: 6, summary: "Added tenant ID columns across shared entities." },
     { member: "Ahmed Khan", task: "Multi-Tenancy Platform", subTask: "Tenant middleware", hours: 8, summary: "Deployed tenant middleware to staging." },
     { member: "Sarah Ali", task: "Multi-Tenancy Platform", subTask: "Map API setup", hours: 5, summary: "Integrated map API with tenant-scoped keys." },
   ],
-  "2026-PW24": [
+  "2026-W24": [
     { member: "Manohar Ali", task: "Multi-Tenancy Platform", subTask: "Security audit prep", hours: 6, summary: "Prepared audit checklist and evidence pack." },
     { member: "Hassan Malik", task: "Multi-Tenancy Platform", subTask: "API endpoint testing", hours: 7, summary: "Started endpoint load testing for tenant APIs." },
   ],
@@ -193,11 +191,8 @@ function statusLabel(status: MetricStatus | undefined) {
 
 export default function WeeklyUpdateWizard({ onBack, onSubmit }: WeeklyUpdateWizardProps) {
   const reduceMotion = useReducedMotion();
-  const referenceDate = useMemo(() => new Date(2026, 5, 10), []);
-  const weekOptions = useMemo(() => buildProjectWeekOptions(referenceDate), [referenceDate]);
-  const defaultWeek =
-    weekOptions.find((w) => w.weekNumber === getCurrentProjectWeek(referenceDate)) ??
-    weekOptions[weekOptions.length - 1];
+  const weekOptions = useMemo(() => buildWeekOptions(new Date(2026, 5, 10)), []);
+  const defaultWeek = weekOptions.find((w) => w.weekNumber === 23) ?? weekOptions[weekOptions.length - 1];
 
   const [step, setStep] = useState(1);
   const [selectedProjectId, setSelectedProjectId] = useState(String(PROJECTS[0]?.id ?? 1));
@@ -214,7 +209,7 @@ export default function WeeklyUpdateWizard({ onBack, onSubmit }: WeeklyUpdateWiz
 
   const weekDailyUpdates =
     DAILY_UPDATES_BY_WEEK[selectedWeek.value] ??
-    DAILY_UPDATES_BY_WEEK["2026-PW21"] ??
+    DAILY_UPDATES_BY_WEEK["2026-W23"] ??
     [];
 
   const flaggedMetrics = CORE_METRICS.filter((metric) => {
@@ -230,7 +225,7 @@ export default function WeeklyUpdateWizard({ onBack, onSubmit }: WeeklyUpdateWiz
 
   const handleCalendarWeekPick = (date?: Date) => {
     if (!date) return;
-    const option = buildProjectWeekOptionFromDate(date);
+    const option = buildWeekOption(date);
     setWeekPickerDate(date);
     const existing = findWeekOption(option.value, weekOptions);
     setSelectedWeekValue(existing?.value ?? option.value);
@@ -242,7 +237,7 @@ export default function WeeklyUpdateWizard({ onBack, onSubmit }: WeeklyUpdateWiz
       .join("\n");
 
     setExecutiveSummary(
-      `Weekly Update - Week ${selectedWeek.weekNumber} (${formatProjectWeekRange(selectedWeek.weekNumber, selectedWeek.year)})\n\nKey Accomplishments:\n• Completed multi-tenancy database schema implementation\n• Successfully deployed tenant isolation middleware\n• Integrated authentication flow with role-based permissions\n\nProgress: 85% complete, on schedule for Q2 delivery\n\nTeam Performance: All ${selectedProject.team} team members submitted daily updates with 97% compliance\n\nDaily update highlights:\n${updateLines || "• No daily updates found for this week."}\n\nNext Week Focus:\n• API endpoint testing and optimization\n• Frontend integration for tenant management\n• Security audit preparation`,
+      `Weekly Update - Week ${selectedWeek.weekNumber} (${formatWeekRange(selectedWeek)})\n\nKey Accomplishments:\n• Completed multi-tenancy database schema implementation\n• Successfully deployed tenant isolation middleware\n• Integrated authentication flow with role-based permissions\n\nProgress: 85% complete, on schedule for Q2 delivery\n\nTeam Performance: All ${selectedProject.team} team members submitted daily updates with 97% compliance\n\nDaily update highlights:\n${updateLines || "• No daily updates found for this week."}\n\nNext Week Focus:\n• API endpoint testing and optimization\n• Frontend integration for tenant management\n• Security audit preparation`,
     );
     toast.success("Summary generated from this week's daily updates");
   };
@@ -262,8 +257,7 @@ export default function WeeklyUpdateWizard({ onBack, onSubmit }: WeeklyUpdateWiz
   const handleSubmit = () => {
     onSubmit({
       projectName: selectedProject.name,
-      weekNumber: selectedWeek.weekNumber,
-      weekDate: formatProjectWeekRange(selectedWeek.weekNumber, selectedWeek.year),
+      weekDate: formatWeekRange(selectedWeek),
       summary: executiveSummary.trim(),
       metrics: Object.fromEntries(
         CORE_METRICS.map((metric) => [
@@ -655,3 +649,6 @@ export default function WeeklyUpdateWizard({ onBack, onSubmit }: WeeklyUpdateWiz
   );
 }
 
+function formatWeekRange(week: WeekOption) {
+  return `${week.start.toLocaleDateString("en-US", { month: "short", day: "numeric" })}–${week.end.toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" })}`;
+}

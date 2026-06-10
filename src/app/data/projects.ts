@@ -25,7 +25,7 @@ export const PROJECTS: Project[] = [
     team: 8,
     resources: 8,
     startDate: "2026-01-15",
-    currentWeek: 21,
+    currentWeek: 23,
     successRate: 0.85,
   },
   {

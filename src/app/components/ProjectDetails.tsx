@@ -3,6 +3,7 @@ import { Card } from "./ui/card";
 import { Button } from "./ui/button";
 import { Badge } from "./ui/badge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "./ui/tabs";
+import { Separator } from "./ui/separator";
 import { Input } from "./ui/input";
 import { Label } from "./ui/label";
 import { Textarea } from "./ui/textarea";
@@ -43,6 +44,7 @@ import {
   ChevronLeft,
   ChevronRight,
   Users,
+  GitBranch,
   Settings,
   CheckCircle2,
   AlertTriangle,
@@ -51,24 +53,13 @@ import {
   MoreHorizontal,
   RotateCcw,
   Workflow,
-  FileText,
 } from "lucide-react";
 import { DEFAULT_PROJECT_NAME } from "../data/projects";
-import {
-  formatProjectWeekRange,
-  formatProjectWeekRangeNav,
-  getCurrentProjectWeek,
-  getProjectWeekDates,
-  TOTAL_PROJECT_WEEKS,
-} from "../data/projectWeeks";
-import { findWeeklyUpdate, type WeeklyUpdateRecord } from "../data/weeklyUpdates";
-import WeeklyUpdateReportView from "./WeeklyUpdateReportView";
+import { INITIAL_TASKS, INITIAL_TASK_UPDATES, type TaskStatus } from "../data/tasks";
 
 type UserRole = "pm" | "dm" | "em" | "developer" | "admin";
 
 interface ProjectDetailsProps {
-  projectName?: string;
-  weeklyUpdates?: WeeklyUpdateRecord[];
   onBack: () => void;
   onManageWorkflows: () => void;
   onProjectSettings?: () => void;
@@ -87,32 +78,6 @@ const teamMembers = [
   { name: "Omar Farooq", role: "DevOps Engineer", avatar: "OF", workload: 78 },
   { name: "Aisha Rahman", role: "QA Engineer", avatar: "AR", workload: 85 },
   { name: "Bilal Ahmed", role: "UI/UX Designer", avatar: "BA", workload: 90 },
-];
-
-const TIMELINE_YEAR = new Date().getFullYear();
-
-const recentUpdates = [
-  {
-    week: 23,
-    date: formatProjectWeekRange(23, TIMELINE_YEAR),
-    status: "green",
-    summary:
-      "All milestones on track. Completed tenant isolation middleware and merged it to main after review. Provisioning workflow QA starts next week.",
-  },
-  {
-    week: 22,
-    date: formatProjectWeekRange(22, TIMELINE_YEAR),
-    status: "green",
-    summary:
-      "Database schema implementation completed. Starting the API layer with the first set of tenant-scoped endpoints scheduled for review.",
-  },
-  {
-    week: 21,
-    date: formatProjectWeekRange(21, TIMELINE_YEAR),
-    status: "amber",
-    summary:
-      "Authentication integration faced delays due to a third-party OAuth provider outage. Mitigation in progress; one day behind plan.",
-  },
 ];
 
 type LineItemStatus = "Done" | "Doing" | "At Risk" | "Blocked";
@@ -269,9 +234,28 @@ const weeklySummaries: Record<number, {
   },
 };
 
+const TOTAL_WEEKS = 52;
+const MS_PER_WEEK = 7 * 24 * 60 * 60 * 1000;
+const PROJECT_START_MONTH = 0;
+const PROJECT_START_DAY = 15;
 const TODAY = new Date();
 const CURRENT_TIMELINE_YEAR = TODAY.getFullYear();
-const CURRENT_WEEK = getCurrentProjectWeek(TODAY, CURRENT_TIMELINE_YEAR);
+
+function clampWeek(week: number) {
+  return Math.min(TOTAL_WEEKS, Math.max(1, week));
+}
+
+function getProjectStart(year: number) {
+  return new Date(year, PROJECT_START_MONTH, PROJECT_START_DAY);
+}
+
+function getCurrentProjectWeek(today = TODAY) {
+  const projectStart = getProjectStart(today.getFullYear());
+  if (today < projectStart) return 1;
+  return clampWeek(Math.floor((today.getTime() - projectStart.getTime()) / MS_PER_WEEK) + 1);
+}
+
+const CURRENT_WEEK = getCurrentProjectWeek();
 
 // Fixed 4-week "months" so every column is consistent
 const WEEKS_PER_MONTH = 4;
@@ -302,18 +286,23 @@ const KNOWN_WEEK_STATUS: Record<number, WeekStatus> = {
 
 function getDefaultSelectedWeek(year: number) {
   if (year === CURRENT_TIMELINE_YEAR) return CURRENT_WEEK;
-  if (year < CURRENT_TIMELINE_YEAR) return TOTAL_PROJECT_WEEKS;
+  if (year < CURRENT_TIMELINE_YEAR) return TOTAL_WEEKS;
   return 1;
 }
 
 // Generate the full project timeline anchored to the project start date for the selected year.
 function generateWeekData(year: number): WeekData[] {
+  const projectStart = getProjectStart(year);
   const isCurrentYear = year === CURRENT_TIMELINE_YEAR;
   const isPastYear = year < CURRENT_TIMELINE_YEAR;
 
-  return Array.from({ length: TOTAL_PROJECT_WEEKS }, (_, i) => {
+  return Array.from({ length: TOTAL_WEEKS }, (_, i) => {
+    const start = new Date(projectStart);
+    start.setDate(start.getDate() + i * 7);
+    const end = new Date(start);
+    end.setDate(end.getDate() + 6);
+
     const weekNumber = i + 1;
-    const { start, end } = getProjectWeekDates(weekNumber, year);
     let status: WeekStatus = 'grey';
     if (isPastYear || (isCurrentYear && weekNumber <= CURRENT_WEEK)) {
       status = (isCurrentYear ? KNOWN_WEEK_STATUS[weekNumber] : undefined) ?? (() => {
@@ -339,6 +328,11 @@ function groupWeeksByMonth(weeks: WeekData[]) {
     });
   }
   return columns;
+}
+
+function formatRange(w: WeekData) {
+  const opts: Intl.DateTimeFormatOptions = { month: 'short', day: 'numeric' };
+  return `${w.start.toLocaleDateString('en-US', opts)} - ${w.end.toLocaleDateString('en-US', opts)}`;
 }
 
 function getWeekStorageKey(year: number, weekNumber: number) {
@@ -385,12 +379,10 @@ function formatDailyUpdateDate(date: string) {
 
 function WeekBox({
   data,
-  year,
   isSelected,
   onClick,
 }: {
   data: WeekData;
-  year: number;
   isSelected: boolean;
   onClick: () => void;
 }) {
@@ -400,7 +392,7 @@ function WeekBox({
     red: 'bg-red-500 hover:ring-red-300',
     grey: 'bg-gray-200 hover:ring-gray-300',
   };
-  const label = `Week ${data.week + 1}, ${formatProjectWeekRangeNav(data.week + 1, year)}, ${STATUS_LABEL[data.status]}${
+  const label = `Week ${data.week + 1}, ${formatRange(data)}, ${STATUS_LABEL[data.status]}${
     data.isCurrent ? ' (current week)' : ''
   }${isSelected ? ' (selected)' : ''}`;
 
@@ -664,16 +656,7 @@ function WeekTaskLineItems({
   );
 }
 
-export default function ProjectDetails({
-  projectName = DEFAULT_PROJECT_NAME,
-  weeklyUpdates = [],
-  onBack,
-  onManageWorkflows,
-  onProjectSettings,
-  onEdit,
-  onDelete,
-  userRole = "pm",
-}: ProjectDetailsProps) {
+export default function ProjectDetails({ onBack, onManageWorkflows, onProjectSettings, onEdit, onDelete, userRole = "pm" }: ProjectDetailsProps) {
   const [activeTab, setActiveTab] = useState("weekly");
   const [timelineYear, setTimelineYear] = useState(CURRENT_TIMELINE_YEAR);
   const [selectedWeek, setSelectedWeek] = useState<number>(CURRENT_WEEK);
@@ -700,12 +683,10 @@ export default function ProjectDetails({
   const minTimelineYear = timelineYears[0];
   const weekData = useMemo(() => generateWeekData(timelineYear), [timelineYear]);
   const monthColumns = useMemo(() => groupWeeksByMonth(weekData), [weekData]);
-  const weeksRemaining = timelineYear === CURRENT_TIMELINE_YEAR ? TOTAL_PROJECT_WEEKS - CURRENT_WEEK : 0;
+  const weeksRemaining = timelineYear === CURRENT_TIMELINE_YEAR ? TOTAL_WEEKS - CURRENT_WEEK : 0;
   const selectedWeekKey = getWeekStorageKey(timelineYear, selectedWeek);
   const selectedWeekData = weekData.find((week) => week.week + 1 === selectedWeek);
-  const selectedWeekRange = selectedWeekData
-    ? formatProjectWeekRangeNav(selectedWeek, timelineYear)
-    : "";
+  const selectedWeekRange = selectedWeekData ? formatRange(selectedWeekData) : "";
   const selectedTaskLineItems = taskLineItemsByWeek[selectedWeekKey] ?? [];
   const savedWeekSummary = timelineYear === CURRENT_TIMELINE_YEAR ? weeklySummaries[selectedWeek] : undefined;
   const selectedWeekSummary =
@@ -719,25 +700,79 @@ export default function ProjectDetails({
     };
   const timelineStatusText =
     timelineYear === CURRENT_TIMELINE_YEAR
-      ? `Week ${CURRENT_WEEK} of ${TOTAL_PROJECT_WEEKS} · ${weeksRemaining} remaining`
+      ? `Week ${CURRENT_WEEK} of ${TOTAL_WEEKS} · ${weeksRemaining} remaining`
       : `Full ${timelineYear} timeline`;
   const canMoveToPreviousYear = timelineYear > minTimelineYear;
   const canMoveToNextYear = timelineYear < CURRENT_TIMELINE_YEAR;
   const canMoveToPreviousWeek = selectedWeek > 1 || canMoveToPreviousYear;
-  const canMoveToNextWeek = selectedWeek < TOTAL_PROJECT_WEEKS || canMoveToNextYear;
+  const canMoveToNextWeek = selectedWeek < TOTAL_WEEKS || canMoveToNextYear;
   const canSaveLineItem = Boolean(
     lineItemDraft.parentTask.trim() &&
       lineItemDraft.lineItem.trim() &&
       lineItemDraft.owner.trim() &&
       lineItemDraft.update.trim(),
   );
-  const selectedWeeklyReport = useMemo(
-    () =>
-      timelineYear === CURRENT_TIMELINE_YEAR
-        ? findWeeklyUpdate(projectName, selectedWeek, weeklyUpdates)
-        : undefined,
-    [projectName, selectedWeek, timelineYear, weeklyUpdates],
+  const projectTasks = useMemo(
+    () => INITIAL_TASKS.filter((task) => task.projectId === "sumhuman"),
+    [],
   );
+  const projectTaskById = useMemo(
+    () => new Map(projectTasks.map((task) => [task.id, task])),
+    [projectTasks],
+  );
+  const dailyUpdateRows = useMemo(
+    () =>
+      INITIAL_TASK_UPDATES.filter((update) => update.type === "daily")
+        .map((update) => {
+          const task = projectTaskById.get(update.taskId);
+          if (!task) return null;
+
+          return {
+            id: update.id,
+            date: update.date,
+            member: update.author,
+            task: task.title,
+            parentTask: task.parentId ? projectTaskById.get(task.parentId)?.title ?? "Parent task" : task.title,
+            status: task.status,
+            hours: update.hours ?? 0,
+            update: update.text,
+          };
+        })
+        .filter((row): row is NonNullable<typeof row> => Boolean(row))
+        .sort((a, b) => b.date.localeCompare(a.date)),
+    [projectTaskById],
+  );
+  const dailyUpdateMembers = useMemo(
+    () => Array.from(new Set(dailyUpdateRows.map((row) => row.member))).sort(),
+    [dailyUpdateRows],
+  );
+  const dailyUpdateTasks = useMemo(
+    () => Array.from(new Set(dailyUpdateRows.map((row) => row.parentTask))).sort(),
+    [dailyUpdateRows],
+  );
+  const filteredDailyUpdateRows = useMemo(() => {
+    const query = dailyUpdateSearch.trim().toLowerCase();
+
+    return dailyUpdateRows.filter((row) => {
+      const matchesSearch =
+        query === "" ||
+        row.member.toLowerCase().includes(query) ||
+        row.task.toLowerCase().includes(query) ||
+        row.parentTask.toLowerCase().includes(query) ||
+        row.update.toLowerCase().includes(query);
+      const matchesMember = dailyUpdateMemberFilter === "all" || row.member === dailyUpdateMemberFilter;
+      const matchesTask = dailyUpdateTaskFilter === "all" || row.parentTask === dailyUpdateTaskFilter;
+      const matchesStatus = dailyUpdateStatusFilter === "all" || row.status === dailyUpdateStatusFilter;
+
+      return matchesSearch && matchesMember && matchesTask && matchesStatus;
+    });
+  }, [
+    dailyUpdateMemberFilter,
+    dailyUpdateRows,
+    dailyUpdateSearch,
+    dailyUpdateStatusFilter,
+    dailyUpdateTaskFilter,
+  ]);
 
   const handleDelete = () => {
     onDelete?.();
@@ -764,18 +799,18 @@ export default function ProjectDetails({
 
   const shiftSelectedWeek = (direction: -1 | 1) => {
     const nextWeek = selectedWeek + direction;
-    if (nextWeek >= 1 && nextWeek <= TOTAL_PROJECT_WEEKS) {
+    if (nextWeek >= 1 && nextWeek <= TOTAL_WEEKS) {
       handleWeekSelect(nextWeek);
       return;
     }
 
     if (nextWeek < 1 && canMoveToPreviousYear) {
       setTimelineYear(timelineYear - 1);
-      handleWeekSelect(TOTAL_PROJECT_WEEKS);
+      handleWeekSelect(TOTAL_WEEKS);
       return;
     }
 
-    if (nextWeek > TOTAL_PROJECT_WEEKS && canMoveToNextYear) {
+    if (nextWeek > TOTAL_WEEKS && canMoveToNextYear) {
       setTimelineYear(timelineYear + 1);
       handleWeekSelect(1);
     }
@@ -836,7 +871,7 @@ export default function ProjectDetails({
       {/* Header */}
       <div className="flex items-start justify-between">
         <div>
-          <h1 className="text-3xl mb-3">{projectName}</h1>
+          <h1 className="text-3xl mb-3">{DEFAULT_PROJECT_NAME}</h1>
           <div className="flex items-center gap-3 mb-3">
             <Badge variant="secondary">MTP-2026</Badge>
             <Badge className="bg-green-500">On Track</Badge>
@@ -899,7 +934,7 @@ export default function ProjectDetails({
           <AlertDialogHeader>
             <AlertDialogTitle>Delete this project?</AlertDialogTitle>
             <AlertDialogDescription>
-              This will permanently delete "{projectName}" and all of its
+              This will permanently delete "{DEFAULT_PROJECT_NAME}" and all of its
               updates, milestones, and escalations. This action cannot be undone.
             </AlertDialogDescription>
           </AlertDialogHeader>
@@ -1036,7 +1071,6 @@ export default function ProjectDetails({
                     <WeekBox
                       key={w.week}
                       data={w}
-                      year={timelineYear}
                       isSelected={w.week + 1 === selectedWeek}
                       onClick={() => handleWeekSelect(w.week + 1)}
                     />
@@ -1058,7 +1092,7 @@ export default function ProjectDetails({
           <TabsTrigger value="weekly">Weekly View</TabsTrigger>
           <TabsTrigger value="team">Team</TabsTrigger>
           <TabsTrigger value="updates">Recent Updates</TabsTrigger>
-          <TabsTrigger value="weekly-report">Weekly Report</TabsTrigger>
+          <TabsTrigger value="info">Info</TabsTrigger>
         </TabsList>
 
         {/* Weekly View Tab */}
@@ -1077,21 +1111,146 @@ export default function ProjectDetails({
           />
         </TabsContent>
 
-        {/* Weekly Report Tab */}
-        <TabsContent value="weekly-report" className="mt-6 space-y-6">
-          {selectedWeeklyReport ? (
-            <WeeklyUpdateReportView update={selectedWeeklyReport} embedded />
-          ) : (
-            <Card className="p-8 text-center">
-              <FileText className="mx-auto mb-3 h-10 w-10 text-muted-foreground" />
-              <h3 className="text-lg font-medium">Report not generated</h3>
-              <p className="mt-1 text-sm text-muted-foreground">
-                Your report for Week {selectedWeek}
-                {timelineYear !== CURRENT_TIMELINE_YEAR ? `, ${timelineYear}` : ""} has not been
-                generated yet.
+        {/* Info Tab */}
+        <TabsContent value="info" className="space-y-6 mt-6">
+          <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+            <Card className="lg:col-span-2 p-6">
+              <h2 className="text-xl mb-4">Project Description</h2>
+              <p className="text-muted-foreground mb-4">
+                Building a comprehensive multi-tenancy platform that enables enterprise customers to
+                manage multiple isolated environments within a single application instance. The
+                platform will include tenant isolation at database level, role-based access control,
+                and automated provisioning workflows.
               </p>
+
+              <Separator className="my-4" />
+
+              <h3 className="text-lg mb-3">Key Objectives</h3>
+              <ul className="space-y-2 text-muted-foreground">
+                <li className="flex items-start gap-2">
+                  <CheckCircle2 className="w-4 h-4 text-green-500 mt-1 flex-shrink-0" />
+                  <span>Implement row-level security for tenant data isolation</span>
+                </li>
+                <li className="flex items-start gap-2">
+                  <CheckCircle2 className="w-4 h-4 text-green-500 mt-1 flex-shrink-0" />
+                  <span>Build automated tenant provisioning and onboarding</span>
+                </li>
+                <li className="flex items-start gap-2">
+                  <AlertTriangle className="w-4 h-4 text-amber-500 mt-1 flex-shrink-0" />
+                  <span>Develop comprehensive admin dashboard for tenant management</span>
+                </li>
+                <li className="flex items-start gap-2">
+                  <div className="w-4 h-4 border-2 border-gray-300 rounded mt-1 flex-shrink-0" />
+                  <span>Implement usage-based billing and metering</span>
+                </li>
+              </ul>
+
+              <Separator className="my-4" />
+
+              <h3 className="text-lg mb-3">Current Status</h3>
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <p className="text-sm text-muted-foreground mb-1">Schedule</p>
+                  <Badge className="bg-green-500">On Track</Badge>
+                </div>
+                <div>
+                  <p className="text-sm text-muted-foreground mb-1">Delivery</p>
+                  <Badge className="bg-green-500">On Track</Badge>
+                </div>
+                <div>
+                  <p className="text-sm text-muted-foreground mb-1">Quality</p>
+                  <Badge className="bg-amber-500">At Risk</Badge>
+                </div>
+                <div>
+                  <p className="text-sm text-muted-foreground mb-1">Budget</p>
+                  <Badge className="bg-green-500">On Track</Badge>
+                </div>
+              </div>
             </Card>
-          )}
+
+            <div className="space-y-6">
+              <Card className="p-6">
+                <h3 className="text-lg mb-4">Project Info</h3>
+                <div className="space-y-3 text-sm">
+                  <div>
+                    <p className="text-muted-foreground">Project Manager</p>
+                    <p className="font-medium">Manohar Ali</p>
+                  </div>
+                  <div>
+                    <p className="text-muted-foreground">Delivery Manager</p>
+                    <p className="font-medium">Aries Khan</p>
+                  </div>
+                  <div>
+                    <p className="text-muted-foreground">Start Date</p>
+                    <p className="font-medium">Jan 15, 2026</p>
+                  </div>
+                  <div>
+                    <p className="text-muted-foreground">Expected End</p>
+                    <p className="font-medium">Aug 31, 2026</p>
+                  </div>
+                  <div>
+                    <p className="text-muted-foreground">Budget</p>
+                    <p className="font-medium">$500,000</p>
+                  </div>
+                </div>
+              </Card>
+
+              <Card className="p-6">
+                <h3 className="text-lg mb-4">Integrations</h3>
+                <div className="space-y-3">
+                  <div className="flex items-center gap-2">
+                    <GitBranch className="w-4 h-4 text-muted-foreground" />
+                    <span className="text-sm">github.com/company/multi-tenancy</span>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <div className="w-4 h-4 text-muted-foreground">#</div>
+                    <span className="text-sm">#project-multi-tenancy</span>
+                  </div>
+                </div>
+              </Card>
+
+              <Card className="p-6">
+                <h3 className="text-lg mb-4">Active Workflows</h3>
+                <div className="space-y-2">
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-2">
+                      <div className="w-2 h-2 bg-green-500 rounded-full" />
+                      <span className="text-sm">Daily Update Reminder</span>
+                    </div>
+                    <Badge variant="outline" className="text-xs">System</Badge>
+                  </div>
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-2">
+                      <div className="w-2 h-2 bg-green-500 rounded-full" />
+                      <span className="text-sm">Overdue Escalation</span>
+                    </div>
+                    <Badge variant="outline" className="text-xs">System</Badge>
+                  </div>
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-2">
+                      <div className="w-2 h-2 bg-green-500 rounded-full" />
+                      <span className="text-sm">Weekly Report</span>
+                    </div>
+                    <Badge className="bg-purple-500 text-xs">Custom</Badge>
+                  </div>
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-2">
+                      <div className="w-2 h-2 bg-green-500 rounded-full" />
+                      <span className="text-sm">Slack Standup</span>
+                    </div>
+                    <Badge className="bg-purple-500 text-xs">Custom</Badge>
+                  </div>
+                </div>
+                <Button
+                  variant="link"
+                  className="px-0 mt-3 text-xs"
+                  onClick={onManageWorkflows}
+                >
+                  Manage Workflows →
+                </Button>
+              </Card>
+            </div>
+          </div>
         </TabsContent>
 
         {/* Team Tab */}
