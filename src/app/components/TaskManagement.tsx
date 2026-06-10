@@ -36,11 +36,18 @@ import {
   getAncestors,
   getSubtree,
   newTaskId,
+  collectAvailableLabelTags,
+  derivePriorityFromLabelTags,
+  getTaskLabelTags,
+  getVisibleTaskLabelTags,
+  getLabelTagSortOrder,
+  taskLabelTagsMatchQuery,
+  taskMatchesLabelTagFilter,
   type Task,
   type TaskStatus,
-  type TaskPriority,
   type TaskUpdate,
 } from "../data/tasks";
+import LabelTagSelect from "./LabelTagSelect";
 
 interface TaskManagementProps {
   tasks: Task[];
@@ -65,22 +72,21 @@ const STATUS_LABEL: Record<TaskStatus, string> = {
   "on-hold": "On Hold",
 };
 
-const PRIORITY_ORDER: Record<TaskPriority, number> = {
-  high: 0,
-  medium: 1,
-  low: 2,
+const LABEL_TAG_BADGE: Record<string, string> = {
+  "High Priority": "bg-red-100 text-red-700 border-red-200",
+  "Medium Priority": "bg-amber-100 text-amber-700 border-amber-200",
+  "Low Priority": "bg-blue-100 text-blue-700 border-blue-200",
+  "Milestone 1": "bg-purple-100 text-purple-700 border-purple-200",
 };
 
-const PRIORITY_BADGE: Record<TaskPriority, string> = {
-  high: "bg-red-100 text-red-700 border-red-200",
-  medium: "bg-amber-100 text-amber-700 border-amber-200",
-  low: "bg-blue-100 text-blue-700 border-blue-200",
-};
+function labelTagBadgeClass(tag: string): string {
+  return LABEL_TAG_BADGE[tag] ?? "bg-gray-100 text-gray-700 border-gray-200";
+}
 
 interface FilterState {
   project: string;
   status: string;
-  priority: string;
+  labelTag: string;
   assignee: string;
   hasBlockers: string;
   overdue: string;
@@ -89,7 +95,7 @@ interface FilterState {
 const EMPTY_FILTERS: FilterState = {
   project: "all",
   status: "all",
-  priority: "all",
+  labelTag: "all",
   assignee: "all",
   hasBlockers: "all",
   overdue: "all",
@@ -113,8 +119,8 @@ function matchesTask(
   // Status filter
   if (filters.status !== "all" && task.status !== filters.status) return false;
 
-  // Priority filter
-  if (filters.priority !== "all" && task.priority !== filters.priority) return false;
+  // Label tag filter
+  if (!taskMatchesLabelTagFilter(task, filters.labelTag)) return false;
 
   // Assignee filter
   if (filters.assignee !== "all") {
@@ -145,9 +151,9 @@ function matchesTask(
     const q = search.toLowerCase();
     const inTitle = task.title.toLowerCase().includes(q);
     const inDesc = task.description?.toLowerCase().includes(q) ?? false;
-    const inLabels = task.labels.some((l) => l.toLowerCase().includes(q));
+    const inLabelTags = taskLabelTagsMatchQuery(task, q);
     const inAssignees = task.assignees.some((a) => a.toLowerCase().includes(q));
-    if (!inTitle && !inDesc && !inLabels && !inAssignees) return false;
+    if (!inTitle && !inDesc && !inLabelTags && !inAssignees) return false;
   }
 
   return true;
@@ -155,7 +161,7 @@ function matchesTask(
 
 function sortTasks(tasks: Task[]) {
   return [...tasks].sort((a, b) => {
-    const priorityDiff = PRIORITY_ORDER[a.priority] - PRIORITY_ORDER[b.priority];
+    const priorityDiff = getLabelTagSortOrder(a) - getLabelTagSortOrder(b);
     if (priorityDiff !== 0) return priorityDiff;
     if (a.dueDate && b.dueDate) {
       return new Date(a.dueDate).getTime() - new Date(b.dueDate).getTime();
@@ -268,15 +274,21 @@ export default function TaskManagement({
   const [showForm, setShowForm] = useState(false);
   const [editingTask, setEditingTask] = useState<Task | null>(null);
   const [subtaskFormParentId, setSubtaskFormParentId] = useState<string | null>(null);
+  const [customLabelTags, setCustomLabelTags] = useState<string[]>([]);
 
   const [formData, setFormData] = useState({
     title: "",
     projectId: "",
-    priority: "medium" as TaskPriority,
+    labelTags: ["Medium Priority"] as string[],
     description: "",
     dueDate: "",
     assignees: [] as string[],
   });
+
+  const availableLabelTags = useMemo(
+    () => collectAvailableLabelTags(tasks, customLabelTags),
+    [tasks, customLabelTags],
+  );
 
   const visibleRows = useMemo(
     () => buildVisibleRows(tasks, expanded, filters, search, updates),
@@ -313,7 +325,7 @@ export default function TaskManagement({
     setFormData({
       title: task.title,
       projectId: task.projectId,
-      priority: task.priority,
+      labelTags: getTaskLabelTags(task),
       description: task.description ?? "",
       dueDate: task.dueDate ?? "",
       assignees: [...task.assignees],
@@ -340,6 +352,9 @@ export default function TaskManagement({
       return;
     }
 
+    const labelTags = formData.labelTags.map((tag) => tag.trim()).filter(Boolean);
+    const priority = derivePriorityFromLabelTags(labelTags);
+
     if (editingTask) {
       onTasksChange(
         tasks.map((t) =>
@@ -348,7 +363,8 @@ export default function TaskManagement({
                 ...t,
                 title: formData.title,
                 projectId: formData.projectId,
-                priority: formData.priority,
+                priority,
+                labels: labelTags,
                 description: formData.description || undefined,
                 dueDate: formData.dueDate || undefined,
                 assignees: formData.assignees,
@@ -366,8 +382,8 @@ export default function TaskManagement({
         description: formData.description || undefined,
         assignees: formData.assignees,
         dueDate: formData.dueDate || undefined,
-        priority: formData.priority,
-        labels: [],
+        priority,
+        labels: labelTags,
         status: "doing",
         createdBy: "Hamza Khan (PM)",
         createdAt: new Date().toISOString().split("T")[0],
@@ -383,8 +399,8 @@ export default function TaskManagement({
         description: formData.description || undefined,
         assignees: formData.assignees,
         dueDate: formData.dueDate || undefined,
-        priority: formData.priority,
-        labels: [],
+        priority,
+        labels: labelTags,
         status: "doing",
         createdBy: "Hamza Khan (PM)",
         createdAt: new Date().toISOString().split("T")[0],
@@ -399,7 +415,7 @@ export default function TaskManagement({
     setFormData({
       title: "",
       projectId: "",
-      priority: "medium",
+      labelTags: ["Medium Priority"],
       description: "",
       dueDate: "",
       assignees: [],
@@ -415,7 +431,7 @@ export default function TaskManagement({
     setFormData({
       title: "",
       projectId: "",
-      priority: "medium",
+      labelTags: ["Medium Priority"],
       description: "",
       dueDate: "",
       assignees: [],
@@ -430,7 +446,7 @@ export default function TaskManagement({
     setFormData({
       title: "",
       projectId: parent?.projectId ?? "",
-      priority: "medium",
+      labelTags: parent ? getTaskLabelTags(parent) : ["Medium Priority"],
       description: "",
       dueDate: "",
       assignees: parent?.assignees ? [...parent.assignees] : [],
@@ -471,7 +487,7 @@ export default function TaskManagement({
           <div className="relative flex-1 min-w-0">
             <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-muted-foreground" />
             <Input
-              placeholder="Search tasks, descriptions, labels, assignees..."
+              placeholder="Search tasks, descriptions, label tags, assignees..."
               value={search}
               onChange={(e) => setSearch(e.target.value)}
               className="pl-8 h-8 text-xs"
@@ -563,17 +579,19 @@ export default function TaskManagement({
             </Select>
 
             <Select
-              value={filters.priority}
-              onValueChange={(v) => setFilters((f) => ({ ...f, priority: v }))}
+              value={filters.labelTag}
+              onValueChange={(v) => setFilters((f) => ({ ...f, labelTag: v }))}
             >
-              <SelectTrigger className="h-7 text-xs w-[120px]">
-                <SelectValue placeholder="Priority" />
+              <SelectTrigger className="h-7 text-xs w-[140px]">
+                <SelectValue placeholder="Label tags" />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="all">All Priority</SelectItem>
-                <SelectItem value="high">High</SelectItem>
-                <SelectItem value="medium">Medium</SelectItem>
-                <SelectItem value="low">Low</SelectItem>
+                <SelectItem value="all">All Label tags</SelectItem>
+                {availableLabelTags.map((tag) => (
+                  <SelectItem key={tag} value={tag}>
+                    {tag}
+                  </SelectItem>
+                ))}
               </SelectContent>
             </Select>
 
@@ -674,19 +692,18 @@ export default function TaskManagement({
                   </SelectContent>
                 </Select>
               )}
-              <Select
-                value={formData.priority}
-                onValueChange={(val: TaskPriority) => setFormData({ ...formData, priority: val })}
-              >
-                <SelectTrigger className="h-8 text-xs">
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="low">Low</SelectItem>
-                  <SelectItem value="medium">Medium</SelectItem>
-                  <SelectItem value="high">High</SelectItem>
-                </SelectContent>
-              </Select>
+              <LabelTagSelect
+                value={formData.labelTags}
+                onChange={(labelTags) => setFormData({ ...formData, labelTags })}
+                availableTags={availableLabelTags}
+                onCreateTag={(tag) =>
+                  setCustomLabelTags((prev) =>
+                    prev.includes(tag) ? prev : [...prev, tag],
+                  )
+                }
+                placeholder="Label tags"
+                className="w-full"
+              />
               <Input
                 type="date"
                 className="h-8 text-xs"
@@ -719,10 +736,10 @@ export default function TaskManagement({
       <div className="flex-1 px-4 py-3 min-h-0">
         <Card className="overflow-hidden">
           {/* List header */}
-          <div className="grid grid-cols-[minmax(10rem,1fr)_10rem_5rem_6rem_4rem_5.5rem] items-center gap-2 px-3 py-2 bg-muted/40 border-b text-[10px] font-medium text-muted-foreground uppercase tracking-wider">
+          <div className="grid grid-cols-[minmax(10rem,1fr)_10rem_7rem_6rem_4rem_5.5rem] items-center gap-2 px-3 py-2 bg-muted/40 border-b text-[10px] font-medium text-muted-foreground uppercase tracking-wider">
             <span className="min-w-0">Task</span>
             <span className="min-w-0">Project</span>
-            <span className="min-w-0">Priority</span>
+            <span className="min-w-0">Label Tags</span>
             <span className="min-w-0">Status</span>
             <span className="min-w-0 text-right">Due</span>
             <span className="min-w-0" />
@@ -753,11 +770,17 @@ export default function TaskManagement({
                   const rollup = getRollup(tasks, updates, task.id);
                   const isExpanded = expanded.has(task.id);
                   const overdue = isOverdue(task);
+                  const { visible: visibleLabelTags, overflow: labelTagOverflow } =
+                    getVisibleTaskLabelTags(task);
+                  const hiddenLabelTagsTitle =
+                    labelTagOverflow > 0
+                      ? getTaskLabelTags(task).slice(2).join(", ")
+                      : undefined;
 
                   return (
                     <li
                       key={task.id}
-                      className="group grid grid-cols-[minmax(10rem,1fr)_10rem_5rem_6rem_4rem_5.5rem] items-center gap-2 px-3 py-2 hover:bg-muted/30 transition-colors"
+                      className="group grid grid-cols-[minmax(10rem,1fr)_10rem_7rem_6rem_4rem_5.5rem] items-center gap-2 px-3 py-2 hover:bg-muted/30 transition-colors"
                     >
                       {/* Title + badges */}
                       <div
@@ -821,15 +844,6 @@ export default function TaskManagement({
                               Overdue
                             </Badge>
                           )}
-                          {task.labels.map((label) => (
-                            <Badge
-                              key={label}
-                              variant="outline"
-                              className="text-[9px] px-1 py-0 h-3.5 shrink-0 text-muted-foreground"
-                            >
-                              {label}
-                            </Badge>
-                          ))}
                         </div>
                       </div>
 
@@ -843,14 +857,29 @@ export default function TaskManagement({
                         </Badge>
                       </span>
 
-                      {/* Priority */}
-                      <span className="min-w-0">
-                        <Badge
-                          variant="outline"
-                          className={cn("text-[9px] px-1 py-0 h-3.5 capitalize", PRIORITY_BADGE[task.priority])}
-                        >
-                          {task.priority}
-                        </Badge>
+                      {/* Label tags */}
+                      <span className="min-w-0 flex flex-wrap gap-0.5">
+                        {visibleLabelTags.map((tag) => (
+                          <Badge
+                            key={tag}
+                            variant="outline"
+                            className={cn(
+                              "text-[9px] px-1 py-0 h-3.5 truncate max-w-full",
+                              labelTagBadgeClass(tag),
+                            )}
+                          >
+                            {tag}
+                          </Badge>
+                        ))}
+                        {labelTagOverflow > 0 && (
+                          <Badge
+                            variant="outline"
+                            className="text-[9px] px-1 py-0 h-3.5 shrink-0 bg-muted text-muted-foreground border-border"
+                            title={hiddenLabelTagsTitle}
+                          >
+                            +{labelTagOverflow}
+                          </Badge>
+                        )}
                       </span>
 
                       {/* Status */}
