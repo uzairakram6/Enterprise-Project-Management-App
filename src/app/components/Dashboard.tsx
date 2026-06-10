@@ -1,7 +1,10 @@
+import React, { useState } from "react";
 import { Card } from "./ui/card";
 import { Badge } from "./ui/badge";
-import { Users, FolderKanban, AlertCircle, CheckCircle2 } from "lucide-react";
+import { Users, FolderKanban, AlertCircle, CheckCircle2, Search } from "lucide-react";
 import { PROJECTS } from "../data/projects";
+import { Input } from "./ui/input";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "./ui/select";
 
 const stats = [
   { label: "Total Projects", value: String(PROJECTS.length), icon: FolderKanban, trend: "+3 this month", color: "bg-blue-500" },
@@ -17,11 +20,6 @@ const allProjects = PROJECTS.map(({ name, pm, status, progress, team }) => ({
   progress,
   team,
 }));
-
-import { useState } from "react";
-import { Input } from "./ui/input";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "./ui/select";
-import { Search } from "lucide-react";
 
 interface DashboardProps {
   onViewProject?: (projectId: number) => void;
