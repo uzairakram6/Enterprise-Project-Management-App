@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useMemo, useState } from "react";
 import {
   LayoutDashboard,
   FolderKanban,
@@ -10,6 +10,8 @@ import {
   ListChecks,
   UserCheck,
   CalendarRange,
+  UserCog,
+  ShieldCheck,
   type LucideIcon,
 } from "lucide-react";
 import { Button } from "./components/ui/button";
@@ -31,9 +33,29 @@ import TaskManagement from "./components/TaskManagement";
 import TaskDetails from "./components/TaskDetails";
 import { INITIAL_TASKS, INITIAL_TASK_UPDATES, type Task } from "./data/tasks";
 import { DEFAULT_PROJECT_NAME } from "./data/projects";
+import ParentTaskManagement from "./components/ParentTaskManagement";
+import ParentTaskDetails from "./components/ParentTaskDetails";
+import { INITIAL_PARENT_TASKS, type ParentTask } from "./data/parentTasks";
+import {
+  INITIAL_USERS,
+  ROLES,
+  SYSTEM_ROLE_IDS,
+  type AppRoleId,
+  type User,
+  type Role,
+  canAccessPage,
+  findRoleById,
+  getRoleById,
+} from "./data/users";
+import UserManagement from "./components/UserManagement";
+import UserDetails from "./components/UserDetails";
+import AddUserWizard from "./components/AddUserWizard";
+import RoleManagement from "./components/RoleManagement";
+import RoleDetails from "./components/RoleDetails";
+import CreateRoleWizard from "./components/CreateRoleWizard";
 import { Toaster } from "./components/ui/sonner";
 
-type Page = "dashboard" | "projects" | "updates" | "daily-updates" | "tasks" | "resources" | "resource-utilization";
+type Page = "dashboard" | "projects" | "updates" | "daily-updates" | "tasks" | "resources" | "resource-utilization" | "users" | "roles";
 type SubPage =
   | "new-project"
   | "edit-project"
@@ -43,6 +65,10 @@ type SubPage =
   | "project-workflows"
   | "project-settings"
   | "task-details"
+  | "user-details"
+  | "role-details"
+  | "add-user"
+  | "create-role"
   | null;
 
 type NavItem = {
@@ -61,9 +87,16 @@ const navigation: NavItem[] = [
   { id: "tasks", label: "Tasks", icon: ListChecks },
   { id: "resources", label: "Resource Allocation", icon: Users },
   { id: "resource-utilization", label: "Resource Utilization", icon: UserCheck },
+  { id: "users" as Page, label: "Users", icon: UserCog },
+  { id: "roles" as Page, label: "Roles & Permissions", icon: ShieldCheck },
 ];
 
-type UserRole = "pm" | "dm" | "em" | "developer" | "admin";
+const USER_ADMIN_SUBPAGES: SubPage[] = [
+  "add-user",
+  "user-details",
+  "create-role",
+  "role-details",
+];
 
 export default function App() {
   const [currentPage, setCurrentPage] = useState<Page>("dashboard");
@@ -73,7 +106,45 @@ export default function App() {
   const [selectedWeekNumber, setSelectedWeekNumber] = useState<number | null>(null);
   const [selectedTaskId, setSelectedTaskId] = useState<string | null>(null);
   const [tasks, setTasks] = useState<Task[]>(INITIAL_TASKS);
-  const [userRole, setUserRole] = useState<UserRole>("pm");
+  const [users, setUsers] = useState<User[]>(INITIAL_USERS);
+  const [roles, setRoles] = useState<Role[]>(ROLES);
+  const [selectedUserId, setSelectedUserId] = useState<number | null>(null);
+  const [selectedRoleId, setSelectedRoleId] = useState<string | null>(null);
+  const [activeRoleId, setActiveRoleId] = useState<AppRoleId>("avp");
+
+  const activeRole = useMemo(
+    () => findRoleById(activeRoleId, roles),
+    [activeRoleId, roles],
+  );
+
+  const visibleNavigation = useMemo(
+    () => navigation.filter((item) => canAccessPage(activeRole, item.id)),
+    [activeRole],
+  );
+
+  const handleActiveRoleChange = (roleId: AppRoleId) => {
+    setActiveRoleId(roleId);
+    const role = findRoleById(roleId, roles);
+    const allowedPages = navigation.filter((item) => canAccessPage(role, item.id));
+    const fallbackPage = allowedPages[0]?.id ?? "dashboard";
+
+    const onRestrictedUserPage =
+      (currentPage === "users" || currentPage === "roles") &&
+      !canAccessPage(role, "users");
+    const onRestrictedAdminSubPage =
+      currentSubPage && USER_ADMIN_SUBPAGES.includes(currentSubPage) && !canAccessPage(role, "users");
+
+    if (onRestrictedUserPage || onRestrictedAdminSubPage) {
+      handleBackToMain();
+      setCurrentPage(fallbackPage);
+      return;
+    }
+
+    if (!canAccessPage(role, currentPage)) {
+      setCurrentSubPage(null);
+      setCurrentPage(fallbackPage);
+    }
+  };
 
   const handleNewProject = () => {
     setCurrentSubPage("new-project");
@@ -100,6 +171,8 @@ export default function App() {
     setSelectedProjectId(null);
     setSelectedWeekNumber(null);
     setSelectedTaskId(null);
+    setSelectedUserId(null);
+    setSelectedRoleId(null);
   };
 
   const handleViewTask = (taskId: string) => {
@@ -132,6 +205,42 @@ export default function App() {
     handleBackToMain();
   };
 
+  const handleViewUser = (userId: number) => {
+    setSelectedUserId(userId);
+    setCurrentSubPage("user-details");
+  };
+
+  const handleViewRole = (roleId: string) => {
+    setSelectedRoleId(roleId);
+    setCurrentSubPage("role-details");
+  };
+
+  const handleAddUser = () => {
+    setCurrentSubPage("add-user");
+  };
+
+  const handleUserCreated = (user: User) => {
+    setUsers((prev) => [...prev, user]);
+  };
+
+  const handleDeactivateUser = (userId: number) => {
+    setUsers((prev) =>
+      prev.map((u) => (u.id === userId ? { ...u, status: "inactive" as const } : u))
+    );
+  };
+
+  const handleRoleChange = (updatedRole: Role) => {
+    setRoles((prev) => prev.map((r) => (r.id === updatedRole.id ? updatedRole : r)));
+  };
+
+  const handleCreateRole = () => {
+    setCurrentSubPage("create-role");
+  };
+
+  const handleRoleCreated = (role: Role) => {
+    setRoles((prev) => [...prev, role]);
+  };
+
   const renderPage = () => {
     // Render subpages first if active
     if (currentSubPage === "new-project") {
@@ -149,7 +258,7 @@ export default function App() {
           onEdit={handleEditProject}
           onDelete={handleDeleteProject}
           onViewWeekUpdate={(weekNumber) => handleWeekClick(selectedProjectId || 1, weekNumber)}
-          userRole={userRole}
+          userRole="pm"
         />
       );
     }
@@ -188,6 +297,55 @@ export default function App() {
         />
       );
     }
+    if (currentSubPage === "add-user") {
+      return (
+        <AddUserWizard
+          users={users}
+          onBack={handleBackToMain}
+          onUserCreated={handleUserCreated}
+        />
+      );
+    }
+    if (currentSubPage === "user-details" && selectedUserId) {
+      const selectedUser = users.find((u) => u.id === selectedUserId);
+      if (!selectedUser) {
+        handleBackToMain();
+        return null;
+      }
+      return (
+        <UserDetails
+          user={selectedUser}
+          onBack={handleBackToMain}
+          onDeactivate={handleDeactivateUser}
+        />
+      );
+    }
+    if (currentSubPage === "create-role") {
+      return (
+        <CreateRoleWizard
+          roles={roles}
+          onBack={handleBackToMain}
+          onRoleCreated={handleRoleCreated}
+        />
+      );
+    }
+    if (currentSubPage === "role-details" && selectedRoleId) {
+      const selectedRole = getRoleById(selectedRoleId) ?? roles.find((r) => r.id === selectedRoleId);
+      if (!selectedRole) {
+        handleBackToMain();
+        return null;
+      }
+      const liveRole = roles.find((r) => r.id === selectedRoleId) ?? selectedRole;
+      return (
+        <RoleDetails
+          role={liveRole}
+          users={users}
+          onBack={handleBackToMain}
+          onViewUser={handleViewUser}
+          onRoleChange={handleRoleChange}
+        />
+      );
+    }
 
     // Render main pages
     switch (currentPage) {
@@ -217,6 +375,24 @@ export default function App() {
         );
       case "resources":
         return <ResourceAllocation />;
+      case "users":
+        return (
+          <UserManagement
+            users={users}
+            onUsersChange={setUsers}
+            onViewUser={handleViewUser}
+            onAddUser={handleAddUser}
+          />
+        );
+      case "roles":
+        return (
+          <RoleManagement
+            users={users}
+            roles={roles}
+            onViewRole={handleViewRole}
+            onCreateRole={handleCreateRole}
+          />
+        );
       case "resource-utilization":
         return <ResourceAvailability />;
       default:
@@ -245,7 +421,7 @@ export default function App() {
         </div>
 
         <nav className="flex-1 p-4 space-y-2">
-          {navigation.map((item) => {
+          {visibleNavigation.map((item) => {
             const Icon = item.icon;
             const isActive = currentPage === item.id && !currentSubPage;
             return (
@@ -308,16 +484,18 @@ export default function App() {
             </div>
             <div className="flex items-center gap-2">
               <UserCircle className="w-4 h-4 text-muted-foreground" />
-              <Select value={userRole} onValueChange={(val: UserRole) => setUserRole(val)}>
-                <SelectTrigger className="w-[140px]">
+              <Select value={activeRoleId} onValueChange={(val: AppRoleId) => handleActiveRoleChange(val)}>
+                <SelectTrigger className="w-[180px]">
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="pm">Project Manager</SelectItem>
-                  <SelectItem value="dm">Delivery Manager</SelectItem>
-                  <SelectItem value="em">Engineering Mgr</SelectItem>
-                  <SelectItem value="developer">Developer</SelectItem>
-                  <SelectItem value="admin">Admin</SelectItem>
+                  {roles
+                    .filter((role) => SYSTEM_ROLE_IDS.includes(role.id as AppRoleId))
+                    .map((role) => (
+                      <SelectItem key={role.id} value={role.id}>
+                        {role.name}
+                      </SelectItem>
+                    ))}
                 </SelectContent>
               </Select>
             </div>
