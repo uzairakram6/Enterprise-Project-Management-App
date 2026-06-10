@@ -8,6 +8,7 @@ import {
   ClipboardList,
   UserCircle,
   ListChecks,
+  UserCheck,
   CalendarRange,
   type LucideIcon,
 } from "lucide-react";
@@ -18,6 +19,7 @@ import Dashboard from "./components/Dashboard";
 import ProjectsView from "./components/ProjectsView";
 import WeeklyUpdatesView from "./components/WeeklyUpdatesView";
 import ResourceAllocation from "./components/ResourceAllocation";
+import ResourceAvailability from "./components/ResourceAvailability";
 import NewProject from "./components/NewProject";
 import ProjectDetails from "./components/ProjectDetails";
 import ProjectSettings from "./components/ProjectSettings";
@@ -25,13 +27,13 @@ import ViewReports from "./components/ViewReports";
 import WeekUpdateView from "./components/WeekUpdateView";
 import ProjectWorkflowSettings from "./components/ProjectWorkflowSettings";
 import DailyUpdates from "./components/DailyUpdates";
+import TaskManagement from "./components/TaskManagement";
+import TaskDetails from "./components/TaskDetails";
+import { INITIAL_TASKS, INITIAL_TASK_UPDATES, type Task } from "./data/tasks";
 import { DEFAULT_PROJECT_NAME } from "./data/projects";
-import ParentTaskManagement from "./components/ParentTaskManagement";
-import ParentTaskDetails from "./components/ParentTaskDetails";
-import { INITIAL_PARENT_TASKS, type ParentTask } from "./data/parentTasks";
 import { Toaster } from "./components/ui/sonner";
 
-type Page = "dashboard" | "projects" | "updates" | "daily-updates" | "parent-tasks" | "resources";
+type Page = "dashboard" | "projects" | "updates" | "daily-updates" | "tasks" | "resources" | "resource-utilization";
 type SubPage =
   | "new-project"
   | "edit-project"
@@ -40,7 +42,7 @@ type SubPage =
   | "week-update"
   | "project-workflows"
   | "project-settings"
-  | "parent-task-details"
+  | "task-details"
   | null;
 
 type NavItem = {
@@ -50,13 +52,14 @@ type NavItem = {
   badge?: string | number;
 };
 
+
 const navigation: NavItem[] = [
   { id: "dashboard", label: "Dashboard", icon: LayoutDashboard },
   { id: "projects", label: "Projects", icon: FolderKanban },
   { id: "daily-updates", label: "Daily Updates", icon: ClipboardList },
-  { id: "updates", label: "Weekly Updates", icon: CalendarRange },
-  { id: "parent-tasks", label: "Parent Tasks", icon: ListChecks },
+  { id: "tasks", label: "Tasks", icon: ListChecks },
   { id: "resources", label: "Resource Allocation", icon: Users },
+  { id: "resource-utilization", label: "Resource Utilization", icon: UserCheck },
 ];
 
 type UserRole = "pm" | "dm" | "em" | "developer" | "admin";
@@ -67,8 +70,8 @@ export default function App() {
   const [sidebarOpen, setSidebarOpen] = useState(true);
   const [selectedProjectId, setSelectedProjectId] = useState<number | null>(null);
   const [selectedWeekNumber, setSelectedWeekNumber] = useState<number | null>(null);
-  const [selectedParentTaskId, setSelectedParentTaskId] = useState<number | null>(null);
-  const [parentTasks, setParentTasks] = useState<ParentTask[]>(INITIAL_PARENT_TASKS);
+  const [selectedTaskId, setSelectedTaskId] = useState<string | null>(null);
+  const [tasks, setTasks] = useState<Task[]>(INITIAL_TASKS);
   const [userRole, setUserRole] = useState<UserRole>("pm");
 
   const handleNewProject = () => {
@@ -95,17 +98,17 @@ export default function App() {
     setCurrentSubPage(null);
     setSelectedProjectId(null);
     setSelectedWeekNumber(null);
-    setSelectedParentTaskId(null);
+    setSelectedTaskId(null);
   };
 
-  const handleViewParentTask = (taskId: number) => {
-    setSelectedParentTaskId(taskId);
-    setCurrentSubPage("parent-task-details");
+  const handleViewTask = (taskId: string) => {
+    setSelectedTaskId(taskId);
+    setCurrentSubPage("task-details");
   };
 
-  const handleBackToParentTasks = () => {
+  const handleBackToTasks = () => {
     setCurrentSubPage(null);
-    setSelectedParentTaskId(null);
+    setSelectedTaskId(null);
   };
 
   const handleManageWorkflows = (projectId: number) => {
@@ -172,13 +175,17 @@ export default function App() {
         />
       );
     }
-    if (currentSubPage === "parent-task-details" && selectedParentTaskId) {
-      const selectedParentTask = parentTasks.find((task) => task.id === selectedParentTaskId);
-      if (!selectedParentTask) {
-        handleBackToParentTasks();
-        return null;
-      }
-      return <ParentTaskDetails task={selectedParentTask} onBack={handleBackToParentTasks} />;
+    if (currentSubPage === "task-details" && selectedTaskId) {
+      return (
+        <TaskDetails
+          taskId={selectedTaskId}
+          tasks={tasks}
+          updates={INITIAL_TASK_UPDATES}
+          onTasksChange={setTasks}
+          onOpenTask={handleViewTask}
+          onBack={handleBackToTasks}
+        />
+      );
     }
 
     // Render main pages
@@ -197,17 +204,20 @@ export default function App() {
       case "updates":
         return <WeeklyUpdatesView />;
       case "daily-updates":
-        return <DailyUpdates />;
-      case "parent-tasks":
+        return <DailyUpdates tasks={tasks} onTasksChange={setTasks} />;
+      case "tasks":
         return (
-          <ParentTaskManagement
-            tasks={parentTasks}
-            onTasksChange={setParentTasks}
-            onViewTask={handleViewParentTask}
+          <TaskManagement
+            tasks={tasks}
+            updates={INITIAL_TASK_UPDATES}
+            onTasksChange={setTasks}
+            onViewTask={handleViewTask}
           />
         );
       case "resources":
         return <ResourceAllocation />;
+      case "resource-utilization":
+        return <ResourceAvailability />;
       default:
         return <Dashboard />;
     }
