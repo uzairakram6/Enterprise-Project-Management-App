@@ -68,6 +68,7 @@ import {
 } from "../data/tasks";
 
 const STORAGE_KEY = "daily-updates-sessions-v2";
+const LEGACY_STORAGE_KEY = "daily-updates-sessions";
 const DESC_MAX = 500;
 const hourOptions = [1, 2, 3, 4, 5, 6, 7, 8];
 
@@ -90,6 +91,22 @@ interface DailySession {
   entries: UpdateEntry[];
   submittedAt?: string;
 }
+
+interface LegacyUpdateEntry {
+  id?: string;
+  projectId?: string;
+  task?: string;
+  subtask?: string;
+  description?: string;
+  hoursSpent?: number;
+  status?: "draft" | "submitted";
+}
+
+type LegacyDailySession = Partial<{
+  date: string;
+  entries: LegacyUpdateEntry[];
+  submittedAt: string;
+}>;
 
 function getHoursColor(hours: number) {
   if (hours <= 2) return "bg-amber-100 text-amber-700 border-amber-200";
@@ -114,6 +131,31 @@ function createEntry(projectId: string, overrides?: Partial<UpdateEntry>): Updat
   };
 }
 
+function findTaskIdByTitle(
+  tasks: Task[],
+  projectId: string,
+  title?: string,
+  parentTitle?: string
+) {
+  if (!title) return "";
+  const normalizedTitle = title.toLowerCase();
+  const candidates = tasks.filter(
+    (task) => task.projectId === projectId && task.title.toLowerCase() === normalizedTitle
+  );
+  if (!parentTitle) {
+    return candidates.find((task) => task.parentId === null)?.id ?? candidates[0]?.id ?? "";
+  }
+  const normalizedParent = parentTitle.toLowerCase();
+  return (
+    candidates.find((task) => {
+      const parent = tasks.find((candidate) => candidate.id === task.parentId);
+      return parent?.title.toLowerCase() === normalizedParent;
+    })?.id ??
+    candidates[0]?.id ??
+    ""
+  );
+}
+
 function getDefaultSessions(): Record<string, DailySession> {
   const yesterday = dateKey(subDays(new Date(), 1));
 
@@ -122,17 +164,17 @@ function getDefaultSessions(): Record<string, DailySession> {
       date: yesterday,
       submittedAt: `${yesterday}T18:30:00.000Z`,
       entries: [
-        createEntry("mtp", {
+        createEntry("sumhuman", {
           id: "y1",
           taskId: "mt-db-rls-users",
           description: "Added tenant_id to users table and implemented row-level security policies.",
           hoursSpent: 5,
           status: "submitted",
         }),
-        createEntry("portal", {
+        createEntry("gts", {
           id: "y2",
           taskId: "cp-ui-forms-inputs",
-          description: "Built customer profile card and input wrapper components.",
+          description: "Built dispatch card and input wrapper components.",
           hoursSpent: 3,
           status: "submitted",
         }),
@@ -153,7 +195,34 @@ function normalizeSession(raw: Partial<DailySession>, date: string): DailySessio
   };
 }
 
-function loadSessions(): Record<string, DailySession> {
+function normalizeLegacySession(
+  raw: LegacyDailySession,
+  date: string,
+  tasks: Task[]
+): DailySession {
+  return {
+    date,
+    entries: Array.isArray(raw.entries)
+      ? raw.entries.map((entry) => {
+          const projectId = entry.projectId ?? "";
+          const taskId =
+            findTaskIdByTitle(tasks, projectId, entry.subtask, entry.task) ||
+            findTaskIdByTitle(tasks, projectId, entry.task);
+
+          return createEntry(projectId, {
+            id: entry.id ?? crypto.randomUUID(),
+            taskId,
+            description: entry.description ?? "",
+            hoursSpent: entry.hoursSpent ?? 2,
+            status: entry.status ?? "draft",
+          });
+        })
+      : [],
+    submittedAt: raw.submittedAt,
+  };
+}
+
+function loadSessions(tasks: Task[]): Record<string, DailySession> {
   try {
     const raw = localStorage.getItem(STORAGE_KEY);
     if (raw) {
@@ -167,6 +236,22 @@ function loadSessions(): Record<string, DailySession> {
   } catch {
     // ignore
   }
+
+  try {
+    const raw = localStorage.getItem(LEGACY_STORAGE_KEY);
+    if (raw) {
+      const parsed = JSON.parse(raw) as Record<string, LegacyDailySession>;
+      const normalized: Record<string, DailySession> = {};
+      for (const [date, session] of Object.entries(parsed)) {
+        normalized[date] = normalizeLegacySession(session, date, tasks);
+      }
+      saveSessions(normalized);
+      return normalized;
+    }
+  } catch {
+    // ignore legacy data issues
+  }
+
   return getDefaultSessions();
 }
 
@@ -283,7 +368,7 @@ function TaskPicker({
 }
 
 export default function DailyUpdates({ tasks, onTasksChange }: DailyUpdatesProps) {
-  const [sessions, setSessions] = useState<Record<string, DailySession>>(() => loadSessions());
+  const [sessions, setSessions] = useState<Record<string, DailySession>>(() => loadSessions(tasks));
   const [selectedDate, setSelectedDate] = useState<Date>(new Date());
   const [activeTab, setActiveTab] = useState<"today" | "history">("today");
   const [calendarOpen, setCalendarOpen] = useState(false);

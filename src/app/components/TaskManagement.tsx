@@ -719,12 +719,11 @@ export default function TaskManagement({
       <div className="flex-1 px-4 py-3 min-h-0">
         <Card className="overflow-hidden">
           {/* List header */}
-          <div className="grid grid-cols-[minmax(10rem,1fr)_10rem_5rem_6rem_7rem_4rem_5.5rem] items-center gap-2 px-3 py-2 bg-muted/40 border-b text-[10px] font-medium text-muted-foreground uppercase tracking-wider">
+          <div className="grid grid-cols-[minmax(10rem,1fr)_10rem_5rem_6rem_4rem_5.5rem] items-center gap-2 px-3 py-2 bg-muted/40 border-b text-[10px] font-medium text-muted-foreground uppercase tracking-wider">
             <span className="min-w-0">Task</span>
             <span className="min-w-0">Project</span>
             <span className="min-w-0">Priority</span>
             <span className="min-w-0">Status</span>
-            <span className="min-w-0">Assignee</span>
             <span className="min-w-0 text-right">Due</span>
             <span className="min-w-0" />
           </div>
@@ -758,7 +757,7 @@ export default function TaskManagement({
                   return (
                     <li
                       key={task.id}
-                      className="group grid grid-cols-[minmax(10rem,1fr)_10rem_5rem_6rem_7rem_4rem_5.5rem] items-center gap-2 px-3 py-2 hover:bg-muted/30 transition-colors"
+                      className="group grid grid-cols-[minmax(10rem,1fr)_10rem_5rem_6rem_4rem_5.5rem] items-center gap-2 px-3 py-2 hover:bg-muted/30 transition-colors"
                     >
                       {/* Title + badges */}
                       <div
@@ -862,13 +861,6 @@ export default function TaskManagement({
                         >
                           {STATUS_LABEL[task.status]}
                         </Badge>
-                      </span>
-
-                      {/* Assignee */}
-                      <span className="min-w-0 text-[10px] text-muted-foreground truncate">
-                        {task.assignees.length > 0
-                          ? task.assignees.map((a) => a.split(" ")[0]).join(", ")
-                          : "—"}
                       </span>
 
                       {/* Due date */}

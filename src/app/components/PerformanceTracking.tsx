@@ -348,7 +348,7 @@ export default function PerformanceTracking() {
               </li>
               <li className="flex items-start gap-2">
                 <span className="text-amber-600">•</span>
-                <span>Mobile App project has had amber status for 3 consecutive weeks - consider resource reallocation</span>
+                <span>InsightPulse Analytics has had amber status for 3 consecutive weeks - consider resource reallocation</span>
               </li>
               <li className="flex items-start gap-2">
                 <span className="text-blue-600">•</span>

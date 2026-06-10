@@ -18,6 +18,7 @@ import DailyUpdates from "./components/DailyUpdates";
 import TaskManagement from "./components/TaskManagement";
 import TaskDetails from "./components/TaskDetails";
 import { INITIAL_TASKS, INITIAL_TASK_UPDATES, type Task } from "./data/tasks";
+import { DEFAULT_PROJECT_NAME } from "./data/projects";
 import { Toaster } from "./components/ui/sonner";
 
 type Page = "dashboard" | "projects" | "updates" | "daily-updates" | "tasks" | "resources" | "resource-utilization";
@@ -149,7 +150,7 @@ export default function App() {
       return (
         <WeekUpdateView
           weekNumber={selectedWeekNumber}
-          projectName="Multi-Tenancy Platform"
+          projectName={DEFAULT_PROJECT_NAME}
           onBack={handleBackToMain}
         />
       );

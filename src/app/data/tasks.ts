@@ -43,10 +43,24 @@ export interface Project {
 export const MAX_TASK_DEPTH = 10;
 
 export const PROJECTS: Project[] = [
-  { id: "mtp", name: "Multi-Tenancy Platform", type: "Client Project", icon: "🏢", iconBg: "bg-blue-100 text-blue-600" },
-  { id: "portal", name: "Customer Portal Redesign", type: "Client Project", icon: "📊", iconBg: "bg-purple-100 text-purple-600" },
-  { id: "mobile", name: "Mobile App Development", type: "Client Project", icon: "📱", iconBg: "bg-green-100 text-green-600" },
-  { id: "gateway", name: "API Gateway Modernization", type: "Internal Project", icon: "🔧", iconBg: "bg-amber-100 text-amber-600" },
+  { id: "sumhuman", name: "Sumhuman", type: "Internal Project", icon: "🤖", iconBg: "bg-blue-100 text-blue-600" },
+  { id: "gts", name: "GTS — Global Trash System", type: "Internal Project", icon: "♻️", iconBg: "bg-green-100 text-green-600" },
+  { id: "bilingual", name: "Bilingual Chatbot", type: "Client Project", icon: "💬", iconBg: "bg-purple-100 text-purple-600" },
+  { id: "friday", name: "Friday", type: "Client Project", icon: "📅", iconBg: "bg-amber-100 text-amber-600" },
+  { id: "cis-ca", name: "CIS CA", type: "Client Project", icon: "🛡️", iconBg: "bg-red-100 text-red-600" },
+  { id: "dmg", name: "DMG", type: "Client Project", icon: "📦", iconBg: "bg-cyan-100 text-cyan-600" },
+  { id: "als", name: "ALS", type: "Client Project", icon: "🧭", iconBg: "bg-emerald-100 text-emerald-600" },
+  { id: "vorpix", name: "Vorpix", type: "Client Project", icon: "🖼️", iconBg: "bg-indigo-100 text-indigo-600" },
+  { id: "navera", name: "Navera", type: "Client Project", icon: "🧩", iconBg: "bg-violet-100 text-violet-600" },
+  { id: "deep-agents", name: "Deep Agents", type: "Internal Project", icon: "🧠", iconBg: "bg-slate-100 text-slate-600" },
+  { id: "t360-view-engine", name: "T360 View Engine", type: "Internal Project", icon: "🔧", iconBg: "bg-blue-100 text-blue-600" },
+  { id: "fleetroute-logistics", name: "FleetRoute Logistics", type: "Client Project", icon: "🚚", iconBg: "bg-green-100 text-green-600" },
+  { id: "medvault-patient-portal", name: "MedVault Patient Portal", type: "Client Project", icon: "🏥", iconBg: "bg-teal-100 text-teal-600" },
+  { id: "secureauth-identity-platform", name: "SecureAuth Identity Platform", type: "Client Project", icon: "🔐", iconBg: "bg-red-100 text-red-600" },
+  { id: "insightpulse-analytics", name: "InsightPulse Analytics", type: "Client Project", icon: "📈", iconBg: "bg-purple-100 text-purple-600" },
+  { id: "omniretail-commerce-hub", name: "OmniRetail Commerce Hub", type: "Client Project", icon: "🛒", iconBg: "bg-orange-100 text-orange-600" },
+  { id: "smartgrid-energy-monitor", name: "SmartGrid Energy Monitor", type: "Client Project", icon: "⚡", iconBg: "bg-yellow-100 text-yellow-700" },
+  { id: "compliancetrack-audit-suite", name: "ComplianceTrack Audit Suite", type: "Client Project", icon: "📋", iconBg: "bg-rose-100 text-rose-600" },
 ];
 
 export const TEAM_MEMBERS = [
@@ -60,14 +74,104 @@ export const TEAM_MEMBERS = [
 
 const PM = "Hamza Khan (PM)";
 
+const LEGACY_DAILY_TASKS: Record<string, Record<string, string[]>> = {
+  sumhuman: {
+    "User Onboarding": ["Signup flow", "Role assignment", "Welcome emails"],
+    "API Integration": ["Auth endpoints", "Error handling", "Rate limiting"],
+    "Database Schema": ["Tenant columns", "RLS policies", "Migration scripts"],
+    "Bug Fixes": [],
+    "Workflow Setup": [],
+  },
+  gts: {
+    "Route Optimization": ["Map API setup", "Algorithm tuning", "Driver app hooks"],
+    "Fleet Tracking": ["GPS ingestion", "Live map UI", "Alert rules"],
+    "Dispatch UI": [],
+    "Sensor Integration": [],
+    Reporting: [],
+  },
+  bilingual: {
+    "NLP Pipeline": ["Tokenizer setup", "Language detection", "Response templates"],
+    "Intent Training": [],
+    "Voice Integration": [],
+    Testing: [],
+    Deployment: [],
+  },
+  friday: {
+    "Scheduling Engine": ["Recurrence rules", "Conflict detection", "Timezone handling"],
+    "Calendar Sync": [],
+    Notifications: [],
+    "Mobile UI": [],
+    Analytics: [],
+  },
+  "cis-ca": {
+    "Compliance Rules": ["Policy engine", "Rule editor", "Audit triggers"],
+    "Audit Logs": [],
+    "Role Management": [],
+    "Document Vault": [],
+    Reporting: [],
+  },
+  dmg: {
+    "Data Migration": ["Source mapping", "Batch jobs", "Validation checks"],
+    "ETL Pipelines": [],
+    "Validation Suite": [],
+    "Rollback Plan": [],
+    Monitoring: [],
+  },
+};
+
+function slugifyTaskTitle(title: string): string {
+  return title
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, "-")
+    .replace(/^-|-$/g, "");
+}
+
+function createLegacyDailyTasks(): Task[] {
+  const tasks: Task[] = [];
+  for (const [projectId, projectTasks] of Object.entries(LEGACY_DAILY_TASKS)) {
+    for (const [title, subtasks] of Object.entries(projectTasks)) {
+      const taskId = `${projectId}-${slugifyTaskTitle(title)}`;
+      tasks.push({
+        id: taskId,
+        projectId,
+        parentId: null,
+        title,
+        assignees: [],
+        priority: "medium",
+        labels: ["daily-updates"],
+        status: "doing",
+        createdBy: PM,
+        createdAt: "2026-06-01",
+      });
+      for (const subtask of subtasks) {
+        tasks.push({
+          id: `${taskId}-${slugifyTaskTitle(subtask)}`,
+          projectId,
+          parentId: taskId,
+          title: subtask,
+          assignees: [],
+          priority: "medium",
+          labels: ["daily-updates"],
+          status: "doing",
+          createdBy: PM,
+          createdAt: "2026-06-01",
+        });
+      }
+    }
+  }
+  return tasks;
+}
+
 // Deep dummy tree (up to 5 levels) to exercise the n-level UI.
 export const INITIAL_TASKS: Task[] = [
-  // ── Multi-Tenancy Platform ────────────────────────────────────────────
+  ...createLegacyDailyTasks(),
+
+  // ── Sumhuman ──────────────────────────────────────────────────────────
   {
     id: "mt-db",
-    projectId: "mtp",
-    parentId: null,
-    title: "Multi-Tenancy – Database Schema",
+    projectId: "sumhuman",
+    parentId: "sumhuman-database-schema",
+    title: "Tenant isolation schema",
     description: "Implement tenant isolation at database level with RLS policies",
     assignees: ["Ali Hassan", "Sara Ahmed"],
     dueDate: "2026-06-15",
@@ -79,7 +183,7 @@ export const INITIAL_TASKS: Task[] = [
   },
   {
     id: "mt-db-rls",
-    projectId: "mtp",
+    projectId: "sumhuman",
     parentId: "mt-db",
     title: "RLS policy setup",
     assignees: ["Ali Hassan"],
@@ -91,7 +195,7 @@ export const INITIAL_TASKS: Task[] = [
   },
   {
     id: "mt-db-rls-users",
-    projectId: "mtp",
+    projectId: "sumhuman",
     parentId: "mt-db-rls",
     title: "Policies: users table",
     assignees: ["Ali Hassan"],
@@ -103,7 +207,7 @@ export const INITIAL_TASKS: Task[] = [
   },
   {
     id: "mt-db-rls-projects",
-    projectId: "mtp",
+    projectId: "sumhuman",
     parentId: "mt-db-rls",
     title: "Policies: projects table",
     assignees: ["Ali Hassan"],
@@ -115,7 +219,7 @@ export const INITIAL_TASKS: Task[] = [
   },
   {
     id: "mt-db-rls-bypass",
-    projectId: "mtp",
+    projectId: "sumhuman",
     parentId: "mt-db-rls-projects",
     title: "Edge case: admin bypass",
     assignees: ["Sara Ahmed"],
@@ -127,7 +231,7 @@ export const INITIAL_TASKS: Task[] = [
   },
   {
     id: "mt-db-rls-bypass-audit",
-    projectId: "mtp",
+    projectId: "sumhuman",
     parentId: "mt-db-rls-bypass",
     title: "Bypass audit logging",
     assignees: ["Sara Ahmed"],
@@ -139,7 +243,7 @@ export const INITIAL_TASKS: Task[] = [
   },
   {
     id: "mt-db-mig",
-    projectId: "mtp",
+    projectId: "sumhuman",
     parentId: "mt-db",
     title: "Migration scripts",
     assignees: ["Sara Ahmed"],
@@ -152,7 +256,7 @@ export const INITIAL_TASKS: Task[] = [
   },
   {
     id: "mt-db-mig-rollback",
-    projectId: "mtp",
+    projectId: "sumhuman",
     parentId: "mt-db-mig",
     title: "Rollback-safe migrations",
     assignees: ["Sara Ahmed"],
@@ -164,7 +268,7 @@ export const INITIAL_TASKS: Task[] = [
   },
   {
     id: "mt-db-tests",
-    projectId: "mtp",
+    projectId: "sumhuman",
     parentId: "mt-db",
     title: "Admin bypass tests",
     assignees: ["Sara Ahmed"],
@@ -176,9 +280,9 @@ export const INITIAL_TASKS: Task[] = [
   },
   {
     id: "mt-api",
-    projectId: "mtp",
-    parentId: null,
-    title: "Multi-Tenancy – API Layer",
+    projectId: "sumhuman",
+    parentId: "sumhuman-api-integration",
+    title: "Tenant context middleware",
     description: "Build API middleware for tenant context injection",
     assignees: ["Usman Khan"],
     dueDate: "2026-06-20",
@@ -190,7 +294,7 @@ export const INITIAL_TASKS: Task[] = [
   },
   {
     id: "mt-api-mw",
-    projectId: "mtp",
+    projectId: "sumhuman",
     parentId: "mt-api",
     title: "Tenant middleware",
     assignees: ["Usman Khan"],
@@ -202,7 +306,7 @@ export const INITIAL_TASKS: Task[] = [
   },
   {
     id: "mt-api-ctx",
-    projectId: "mtp",
+    projectId: "sumhuman",
     parentId: "mt-api",
     title: "Context injection",
     assignees: ["Usman Khan"],
@@ -214,7 +318,7 @@ export const INITIAL_TASKS: Task[] = [
   },
   {
     id: "mt-api-ctx-pipeline",
-    projectId: "mtp",
+    projectId: "sumhuman",
     parentId: "mt-api-ctx",
     title: "Request pipeline wiring",
     assignees: ["Usman Khan"],
@@ -226,7 +330,7 @@ export const INITIAL_TASKS: Task[] = [
   },
   {
     id: "mt-api-ctx-headers",
-    projectId: "mtp",
+    projectId: "sumhuman",
     parentId: "mt-api-ctx",
     title: "Header propagation",
     assignees: ["Usman Khan"],
@@ -237,13 +341,13 @@ export const INITIAL_TASKS: Task[] = [
     createdAt: "2026-06-05",
   },
 
-  // ── Customer Portal Redesign ──────────────────────────────────────────
+  // ── GTS — Global Trash System ─────────────────────────────────────────
   {
     id: "cp-ui",
-    projectId: "portal",
-    parentId: null,
-    title: "Customer Portal – UI Components",
-    description: "Design and implement reusable React components for customer portal",
+    projectId: "gts",
+    parentId: "gts-dispatch-ui",
+    title: "Dispatch UI components",
+    description: "Design and implement reusable React components for dispatch operations",
     assignees: ["Fatima Malik", "Zainab Ali"],
     dueDate: "2026-06-18",
     priority: "medium",
@@ -254,7 +358,7 @@ export const INITIAL_TASKS: Task[] = [
   },
   {
     id: "cp-ui-buttons",
-    projectId: "portal",
+    projectId: "gts",
     parentId: "cp-ui",
     title: "Button components",
     assignees: ["Fatima Malik"],
@@ -266,7 +370,7 @@ export const INITIAL_TASKS: Task[] = [
   },
   {
     id: "cp-ui-forms",
-    projectId: "portal",
+    projectId: "gts",
     parentId: "cp-ui",
     title: "Form components",
     assignees: ["Zainab Ali"],
@@ -278,7 +382,7 @@ export const INITIAL_TASKS: Task[] = [
   },
   {
     id: "cp-ui-forms-inputs",
-    projectId: "portal",
+    projectId: "gts",
     parentId: "cp-ui-forms",
     title: "Input wrappers",
     assignees: ["Zainab Ali"],
@@ -290,7 +394,7 @@ export const INITIAL_TASKS: Task[] = [
   },
   {
     id: "cp-ui-forms-validation",
-    projectId: "portal",
+    projectId: "gts",
     parentId: "cp-ui-forms",
     title: "Validation states",
     assignees: ["Zainab Ali"],
@@ -301,13 +405,13 @@ export const INITIAL_TASKS: Task[] = [
     createdAt: "2026-06-06",
   },
 
-  // ── Mobile App Development ────────────────────────────────────────────
+  // ── Friday ────────────────────────────────────────────────────────────
   {
     id: "mob-auth",
-    projectId: "mobile",
-    parentId: null,
+    projectId: "friday",
+    parentId: "friday-mobile-ui",
     title: "Authentication",
-    description: "Mobile auth flows including biometrics",
+    description: "Friday mobile auth flows including biometrics",
     assignees: ["Ahmed Raza"],
     dueDate: "2026-06-25",
     priority: "high",
@@ -318,7 +422,7 @@ export const INITIAL_TASKS: Task[] = [
   },
   {
     id: "mob-auth-login",
-    projectId: "mobile",
+    projectId: "friday",
     parentId: "mob-auth",
     title: "Login flow",
     assignees: ["Ahmed Raza"],
@@ -330,7 +434,7 @@ export const INITIAL_TASKS: Task[] = [
   },
   {
     id: "mob-auth-refresh",
-    projectId: "mobile",
+    projectId: "friday",
     parentId: "mob-auth",
     title: "Token refresh",
     assignees: ["Ahmed Raza"],
