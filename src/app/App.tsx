@@ -1,11 +1,22 @@
 import React, { useState } from "react";
-import { LayoutDashboard, FolderKanban, Users, Menu, X, ClipboardList, UserCircle, ListChecks } from "lucide-react";
+import {
+  LayoutDashboard,
+  FolderKanban,
+  Users,
+  Menu,
+  X,
+  ClipboardList,
+  UserCircle,
+  ListChecks,
+  CalendarRange,
+  type LucideIcon,
+} from "lucide-react";
 import { Button } from "./components/ui/button";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "./components/ui/select";
 import { Badge } from "./components/ui/badge";
 import Dashboard from "./components/Dashboard";
 import ProjectsView from "./components/ProjectsView";
-import WeeklyUpdateWizard from "./components/WeeklyUpdateWizard";
+import WeeklyUpdatesView from "./components/WeeklyUpdatesView";
 import ResourceAllocation from "./components/ResourceAllocation";
 import NewProject from "./components/NewProject";
 import ProjectDetails from "./components/ProjectDetails";
@@ -32,12 +43,20 @@ type SubPage =
   | "parent-task-details"
   | null;
 
-const navigation = [
-  { id: "dashboard" as Page, label: "Dashboard", icon: LayoutDashboard },
-  { id: "projects" as Page, label: "Projects", icon: FolderKanban },
-  { id: "daily-updates" as Page, label: "Daily Updates", icon: ClipboardList },
-  { id: "parent-tasks" as Page, label: "Parent Tasks", icon: ListChecks },
-  { id: "resources" as Page, label: "Resource Allocation", icon: Users },
+type NavItem = {
+  id: Page;
+  label: string;
+  icon: LucideIcon;
+  badge?: string | number;
+};
+
+const navigation: NavItem[] = [
+  { id: "dashboard", label: "Dashboard", icon: LayoutDashboard },
+  { id: "projects", label: "Projects", icon: FolderKanban },
+  { id: "daily-updates", label: "Daily Updates", icon: ClipboardList },
+  { id: "updates", label: "Weekly Updates", icon: CalendarRange },
+  { id: "parent-tasks", label: "Parent Tasks", icon: ListChecks },
+  { id: "resources", label: "Resource Allocation", icon: Users },
 ];
 
 type UserRole = "pm" | "dm" | "em" | "developer" | "admin";
@@ -176,7 +195,7 @@ export default function App() {
           />
         );
       case "updates":
-        return <WeeklyUpdateWizard userRole={userRole} />;
+        return <WeeklyUpdatesView />;
       case "daily-updates":
         return <DailyUpdates />;
       case "parent-tasks":
@@ -233,7 +252,7 @@ export default function App() {
               >
                 <Icon className="w-5 h-5" />
                 <span className="font-medium">{item.label}</span>
-                {'badge' in item && item.badge && (
+                {item.badge != null && (
                   <Badge variant="destructive" className="ml-auto">
                     {item.badge}
                   </Badge>
@@ -303,7 +322,7 @@ export default function App() {
         </div>
       </main>
 
-      <Toaster />
+      <Toaster position="top-right" />
     </div>
   );
 }
