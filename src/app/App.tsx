@@ -356,8 +356,6 @@ export default function App() {
           <ProjectsView
             onNewProject={handleNewProject}
             onViewDetails={handleViewDetails}
-            onViewReports={handleViewReports}
-            onWeekClick={handleWeekClick}
           />
         );
       case "updates":

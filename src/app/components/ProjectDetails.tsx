@@ -55,6 +55,7 @@ import {
   Workflow,
 } from "lucide-react";
 import { DEFAULT_PROJECT_NAME } from "../data/projects";
+import { INITIAL_TASKS, INITIAL_TASK_UPDATES, type TaskStatus } from "../data/tasks";
 
 type UserRole = "pm" | "dm" | "em" | "developer" | "admin";
 
@@ -77,30 +78,6 @@ const teamMembers = [
   { name: "Omar Farooq", role: "DevOps Engineer", avatar: "OF", workload: 78 },
   { name: "Aisha Rahman", role: "QA Engineer", avatar: "AR", workload: 85 },
   { name: "Bilal Ahmed", role: "UI/UX Designer", avatar: "BA", workload: 90 },
-];
-
-const recentUpdates = [
-  {
-    week: 23,
-    date: "Jun 2-8, 2026",
-    status: "green",
-    summary:
-      "All milestones on track. Completed tenant isolation middleware and merged it to main after review. Provisioning workflow QA starts next week.",
-  },
-  {
-    week: 22,
-    date: "May 26-Jun 1, 2026",
-    status: "green",
-    summary:
-      "Database schema implementation completed. Starting the API layer with the first set of tenant-scoped endpoints scheduled for review.",
-  },
-  {
-    week: 21,
-    date: "May 19-25, 2026",
-    status: "amber",
-    summary:
-      "Authentication integration faced delays due to a third-party OAuth provider outage. Mitigation in progress; one day behind plan.",
-  },
 ];
 
 type LineItemStatus = "Done" | "Doing" | "At Risk" | "Blocked";
@@ -375,6 +352,30 @@ const LINE_ITEM_STATUS_CLASS: Record<LineItemStatus, string> = {
   "At Risk": "bg-amber-500",
   Blocked: "bg-red-500",
 };
+
+const TASK_STATUS_LABEL: Record<TaskStatus, string> = {
+  doing: "Doing",
+  done: "Done",
+  "at-risk": "At Risk",
+  blocked: "Blocked",
+  "on-hold": "On Hold",
+};
+
+const TASK_STATUS_CLASS: Record<TaskStatus, string> = {
+  doing: "bg-blue-500",
+  done: "bg-green-500",
+  "at-risk": "bg-amber-500",
+  blocked: "bg-red-500",
+  "on-hold": "bg-gray-500",
+};
+
+function formatDailyUpdateDate(date: string) {
+  return new Intl.DateTimeFormat("en-US", {
+    month: "short",
+    day: "numeric",
+    year: "numeric",
+  }).format(new Date(`${date}T00:00:00`));
+}
 
 function WeekBox({
   data,
@@ -670,6 +671,10 @@ export default function ProjectDetails({ onBack, onManageWorkflows, onProjectSet
   const [lineItemEditorOpen, setLineItemEditorOpen] = useState(false);
   const [lineItemDraft, setLineItemDraft] = useState<TaskLineItem>(EMPTY_LINE_ITEM);
   const [deleteOpen, setDeleteOpen] = useState(false);
+  const [dailyUpdateSearch, setDailyUpdateSearch] = useState("");
+  const [dailyUpdateMemberFilter, setDailyUpdateMemberFilter] = useState("all");
+  const [dailyUpdateTaskFilter, setDailyUpdateTaskFilter] = useState("all");
+  const [dailyUpdateStatusFilter, setDailyUpdateStatusFilter] = useState("all");
 
   const timelineYears = useMemo(
     () => Array.from({ length: 4 }, (_, index) => CURRENT_TIMELINE_YEAR - 3 + index),
@@ -707,6 +712,67 @@ export default function ProjectDetails({ onBack, onManageWorkflows, onProjectSet
       lineItemDraft.owner.trim() &&
       lineItemDraft.update.trim(),
   );
+  const projectTasks = useMemo(
+    () => INITIAL_TASKS.filter((task) => task.projectId === "sumhuman"),
+    [],
+  );
+  const projectTaskById = useMemo(
+    () => new Map(projectTasks.map((task) => [task.id, task])),
+    [projectTasks],
+  );
+  const dailyUpdateRows = useMemo(
+    () =>
+      INITIAL_TASK_UPDATES.filter((update) => update.type === "daily")
+        .map((update) => {
+          const task = projectTaskById.get(update.taskId);
+          if (!task) return null;
+
+          return {
+            id: update.id,
+            date: update.date,
+            member: update.author,
+            task: task.title,
+            parentTask: task.parentId ? projectTaskById.get(task.parentId)?.title ?? "Parent task" : task.title,
+            status: task.status,
+            hours: update.hours ?? 0,
+            update: update.text,
+          };
+        })
+        .filter((row): row is NonNullable<typeof row> => Boolean(row))
+        .sort((a, b) => b.date.localeCompare(a.date)),
+    [projectTaskById],
+  );
+  const dailyUpdateMembers = useMemo(
+    () => Array.from(new Set(dailyUpdateRows.map((row) => row.member))).sort(),
+    [dailyUpdateRows],
+  );
+  const dailyUpdateTasks = useMemo(
+    () => Array.from(new Set(dailyUpdateRows.map((row) => row.parentTask))).sort(),
+    [dailyUpdateRows],
+  );
+  const filteredDailyUpdateRows = useMemo(() => {
+    const query = dailyUpdateSearch.trim().toLowerCase();
+
+    return dailyUpdateRows.filter((row) => {
+      const matchesSearch =
+        query === "" ||
+        row.member.toLowerCase().includes(query) ||
+        row.task.toLowerCase().includes(query) ||
+        row.parentTask.toLowerCase().includes(query) ||
+        row.update.toLowerCase().includes(query);
+      const matchesMember = dailyUpdateMemberFilter === "all" || row.member === dailyUpdateMemberFilter;
+      const matchesTask = dailyUpdateTaskFilter === "all" || row.parentTask === dailyUpdateTaskFilter;
+      const matchesStatus = dailyUpdateStatusFilter === "all" || row.status === dailyUpdateStatusFilter;
+
+      return matchesSearch && matchesMember && matchesTask && matchesStatus;
+    });
+  }, [
+    dailyUpdateMemberFilter,
+    dailyUpdateRows,
+    dailyUpdateSearch,
+    dailyUpdateStatusFilter,
+    dailyUpdateTaskFilter,
+  ]);
 
   const handleDelete = () => {
     onDelete?.();
@@ -1220,40 +1286,102 @@ export default function ProjectDetails({ onBack, onManageWorkflows, onProjectSet
         {/* Updates Tab */}
         <TabsContent value="updates" className="space-y-6 mt-6">
           <Card className="p-6">
-            <h2 className="text-xl mb-6">Recent Updates</h2>
-            <div className="space-y-4">
-              {recentUpdates.map((update, idx) => (
-                <button
-                  key={idx}
-                  type="button"
-                  onClick={() => {
-                    setTimelineYear(CURRENT_TIMELINE_YEAR);
-                    handleWeekSelect(update.week);
-                  }}
-                  aria-label={`View full update for week ${update.week}, ${update.date}`}
-                  className="w-full text-left border rounded-lg p-4 transition-colors cursor-pointer hover:bg-accent/50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
-                >
-                  <div className="flex items-start justify-between mb-2">
-                    <div>
-                      <h3 className="font-medium">Week {update.week}</h3>
-                      <p className="text-sm text-muted-foreground">{update.date}</p>
-                    </div>
-                    <div
-                      className={`w-3 h-3 rounded-full ${
-                        update.status === "green"
-                          ? "bg-green-500"
-                          : update.status === "amber"
-                          ? "bg-amber-500"
-                          : "bg-red-500"
-                      }`}
-                    />
-                  </div>
-                  <p className="text-sm text-muted-foreground line-clamp-2">{update.summary}</p>
-                  <span className="inline-block mt-2 text-sm font-medium text-primary">
-                    View full update →
-                  </span>
-                </button>
-              ))}
+            <div className="mb-5 flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
+              <div>
+                <h2 className="text-xl">Recent Daily Updates</h2>
+                <p className="text-sm text-muted-foreground">
+                  Latest team member submissions for {DEFAULT_PROJECT_NAME}.
+                </p>
+              </div>
+              <div className="grid grid-cols-1 gap-2 sm:grid-cols-2 lg:grid-cols-[220px_160px_180px_140px]">
+                <Input
+                  value={dailyUpdateSearch}
+                  onChange={(event) => setDailyUpdateSearch(event.target.value)}
+                  placeholder="Search updates..."
+                  className="h-9"
+                />
+                <Select value={dailyUpdateMemberFilter} onValueChange={setDailyUpdateMemberFilter}>
+                  <SelectTrigger className="h-9">
+                    <SelectValue placeholder="Member" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all">All Members</SelectItem>
+                    {dailyUpdateMembers.map((member) => (
+                      <SelectItem key={member} value={member}>
+                        {member}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+                <Select value={dailyUpdateTaskFilter} onValueChange={setDailyUpdateTaskFilter}>
+                  <SelectTrigger className="h-9">
+                    <SelectValue placeholder="Task" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all">All Tasks</SelectItem>
+                    {dailyUpdateTasks.map((task) => (
+                      <SelectItem key={task} value={task}>
+                        {task}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+                <Select value={dailyUpdateStatusFilter} onValueChange={setDailyUpdateStatusFilter}>
+                  <SelectTrigger className="h-9">
+                    <SelectValue placeholder="Status" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all">All Statuses</SelectItem>
+                    {Object.entries(TASK_STATUS_LABEL).map(([value, label]) => (
+                      <SelectItem key={value} value={value}>
+                        {label}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+            </div>
+
+            <div className="overflow-hidden rounded-lg border">
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead className="w-[130px]">Date</TableHead>
+                    <TableHead className="w-[150px]">Member</TableHead>
+                    <TableHead className="w-[220px]">Task</TableHead>
+                    <TableHead className="w-[110px]">Status</TableHead>
+                    <TableHead className="w-[80px] text-right">Hours</TableHead>
+                    <TableHead>Update</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {filteredDailyUpdateRows.length === 0 ? (
+                    <TableRow>
+                      <TableCell colSpan={6} className="h-24 text-center text-muted-foreground">
+                        No daily updates match the selected filters.
+                      </TableCell>
+                    </TableRow>
+                  ) : (
+                    filteredDailyUpdateRows.map((row) => (
+                      <TableRow key={row.id}>
+                        <TableCell className="text-muted-foreground">{formatDailyUpdateDate(row.date)}</TableCell>
+                        <TableCell className="font-medium">{row.member}</TableCell>
+                        <TableCell>
+                          <div>
+                            <p className="font-medium">{row.task}</p>
+                            <p className="text-xs text-muted-foreground">{row.parentTask}</p>
+                          </div>
+                        </TableCell>
+                        <TableCell>
+                          <Badge className={TASK_STATUS_CLASS[row.status]}>{TASK_STATUS_LABEL[row.status]}</Badge>
+                        </TableCell>
+                        <TableCell className="text-right">{row.hours}h</TableCell>
+                        <TableCell className="whitespace-normal text-muted-foreground">{row.update}</TableCell>
+                      </TableRow>
+                    ))
+                  )}
+                </TableBody>
+              </Table>
             </div>
           </Card>
         </TabsContent>

@@ -1,27 +1,15 @@
-import React, { useMemo, useState } from "react";
+import React, { useState } from "react";
 import { Card } from "./ui/card";
 import { Button } from "./ui/button";
 import { Input } from "./ui/input";
 import { Badge } from "./ui/badge";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "./ui/select";
-import { Search, Plus, Calendar, FileText, Eye, ArrowLeft } from "lucide-react";
+import { Search, Plus } from "lucide-react";
 import { PROJECTS, type Project } from "../data/projects";
 
 type WeekStatus = "green" | "amber" | "red" | "grey";
 
 const TOTAL_WEEKS = 52;
-const WEEKS_PER_MONTH = 4;
-const MONTH_LABELS = [
-  "Jan", "Feb", "Mar", "Apr", "May", "Jun",
-  "Jul", "Aug", "Sep", "Oct", "Nov", "Dec",
-];
-
-const STATUS_LABEL: Record<WeekStatus, string> = {
-  green: "On Track",
-  amber: "At Risk",
-  red: "Delayed",
-  grey: "Future",
-};
 
 function projectToCard(project: Project, weeks: WeekStatus[]) {
   return {
@@ -51,164 +39,12 @@ function generateWeekStatuses(count: number, successRate: number): WeekStatus[] 
   });
 }
 
-interface WeekBoxData {
-  week: number;
-  status: WeekStatus;
-  isCurrent: boolean;
-}
-
-function buildWeekGrid(weeks: WeekStatus[], currentWeek: number): WeekBoxData[] {
-  return weeks.map((status, i) => ({
-    week: i,
-    status,
-    isCurrent: i + 1 === currentWeek,
-  }));
-}
-
-function groupWeeksByMonth(weeks: WeekBoxData[]) {
-  const columns: { label: string; weeks: WeekBoxData[] }[] = [];
-  for (let i = 0; i < weeks.length; i += WEEKS_PER_MONTH) {
-    const chunkIndex = i / WEEKS_PER_MONTH;
-    columns.push({
-      label: MONTH_LABELS[chunkIndex % MONTH_LABELS.length],
-      weeks: weeks.slice(i, i + WEEKS_PER_MONTH),
-    });
-  }
-  return columns;
-}
-
-function WeekBox({
-  data,
-  isSelected,
-  onClick,
-}: {
-  data: WeekBoxData;
-  isSelected: boolean;
-  onClick: () => void;
-}) {
-  const colors: Record<WeekStatus, string> = {
-    green: "bg-green-500 hover:ring-green-300",
-    amber: "bg-amber-500 hover:ring-amber-300",
-    red: "bg-red-500 hover:ring-red-300",
-    grey: "bg-gray-200 hover:ring-gray-300",
-  };
-  const isClickable = data.status !== "grey";
-  const label = `Week ${data.week + 1}, ${STATUS_LABEL[data.status]}${
-    data.isCurrent ? " (current week)" : ""
-  }${isSelected ? " (selected)" : ""}`;
-
-  const ringClass = isSelected
-    ? "ring-2 ring-primary/50 ring-offset-1"
-    : data.isCurrent
-      ? "ring-1 ring-foreground/35 ring-offset-1"
-      : "";
-
-  const className = `flex-1 w-full min-h-5 rounded-[4px] transition-all outline-none ${colors[data.status]} ${
-    isClickable ? "cursor-pointer hover:ring-2 focus-visible:ring-2 focus-visible:ring-offset-1" : ""
-  } ${ringClass}`;
-
-  if (!isClickable) {
-    return <div className={className} title={label} aria-hidden="true" />;
-  }
-
-  return (
-    <button type="button" className={className} onClick={onClick} title={label} aria-label={label} />
-  );
-}
-
-function ProjectTimeline({
-  weeks,
-  currentWeek,
-  onWeekClick,
-}: {
-  weeks: WeekStatus[];
-  currentWeek: number;
-  onWeekClick: (weekNumber: number) => void;
-}) {
-  const [selectedWeek, setSelectedWeek] = useState(currentWeek);
-  const weekGrid = useMemo(() => buildWeekGrid(weeks, currentWeek), [weeks, currentWeek]);
-  const monthColumns = useMemo(() => groupWeeksByMonth(weekGrid), [weekGrid]);
-  const weeksRemaining = TOTAL_WEEKS - currentWeek;
-
-  const handleWeekSelect = (weekNumber: number) => {
-    setSelectedWeek(weekNumber);
-    onWeekClick(weekNumber);
-  };
-
-  return (
-    <div className="flex-1 min-w-0 flex flex-col gap-3">
-      <div className="flex items-baseline justify-between">
-        <h4 className="text-sm font-medium">52 Week Timeline</h4>
-        <p className="text-xs text-muted-foreground">
-          Week <span className="font-medium text-foreground">{currentWeek}</span> of {TOTAL_WEEKS}
-          <span className="mx-1.5">·</span>
-          {weeksRemaining} remaining
-        </p>
-      </div>
-
-      <div className="flex flex-wrap gap-3 text-xs text-muted-foreground">
-          <div className="flex items-center gap-1">
-            <div className="w-2 h-2 bg-green-500 rounded-full" />
-            <span>On Track</span>
-          </div>
-          <div className="flex items-center gap-1">
-            <div className="w-2 h-2 bg-amber-500 rounded-full" />
-            <span>At Risk</span>
-          </div>
-          <div className="flex items-center gap-1">
-            <div className="w-2 h-2 bg-red-500 rounded-full" />
-            <span>Delayed</span>
-          </div>
-          <div className="flex items-center gap-1">
-            <div className="w-2 h-2 bg-gray-200 rounded-full" />
-            <span>Future</span>
-          </div>
-          <div className="flex items-center gap-1">
-            <div className="w-2 h-2 rounded-full ring-2 ring-primary/50 ring-offset-1" />
-            <span>Selected</span>
-          </div>
-          <div className="flex items-center gap-1">
-            <div className="w-2 h-2 rounded-full ring-1 ring-foreground/35" />
-            <span>Current</span>
-          </div>
-      </div>
-
-      <div className="flex flex-1 w-full gap-1.5 min-h-[120px]">
-        {monthColumns.map((col, ci) => (
-          <div key={ci} className="flex flex-1 flex-col gap-1.5 min-w-0">
-            <span className="h-4 text-[11px] leading-4 text-muted-foreground text-center">
-              {col.label}
-            </span>
-            <div className="flex flex-1 flex-col gap-1.5">
-              {col.weeks.map((w) => (
-                <WeekBox
-                  key={w.week}
-                  data={w}
-                  isSelected={w.week + 1 === selectedWeek}
-                  onClick={() => handleWeekSelect(w.week + 1)}
-                />
-              ))}
-            </div>
-          </div>
-        ))}
-      </div>
-
-      <p className="text-xs text-muted-foreground">
-        Select any week to open its status update.
-      </p>
-    </div>
-  );
-}
-
 interface ProjectsViewProps {
   onNewProject: () => void;
   onViewDetails: (projectId: number) => void;
-  onViewReports: (projectId: number) => void;
-  onWeekClick: (projectId: number, weekNumber: number) => void;
 }
 
-export default function ProjectsView({ onNewProject, onViewDetails, onViewReports, onWeekClick }: ProjectsViewProps) {
-  const [selectedProject, setSelectedProject] = useState<number | null>(null);
+export default function ProjectsView({ onNewProject, onViewDetails }: ProjectsViewProps) {
   const [searchTerm, setSearchTerm] = useState("");
   const [filterStatus, setFilterStatus] = useState("all");
   const [selectedYear, setSelectedYear] = useState("2026");
@@ -254,77 +90,12 @@ export default function ProjectsView({ onNewProject, onViewDetails, onViewReport
     return Math.round((completedWeeks / 52) * 100);
   };
 
-  // If a project is selected, show timeline view
-  if (selectedProject !== null) {
-    const project = projects.find(p => p.id === selectedProject);
-    if (!project) {
-      setSelectedProject(null);
-      return null;
-    }
-
-    return (
-      <div className="space-y-4">
-        <div className="flex items-center gap-4">
-          <Button variant="ghost" size="sm" onClick={() => setSelectedProject(null)} className="gap-2">
-            <ArrowLeft className="w-4 h-4" />
-            Back to Grid View
-          </Button>
-        </div>
-
-        <Card className="p-6">
-          <div className="flex flex-col lg:flex-row gap-6 lg:items-stretch min-h-[220px]">
-            {/* Project Info */}
-            <div className="lg:w-64 flex-shrink-0">
-              <h3 className="text-lg mb-2">{project.name}</h3>
-              <div className="space-y-1 text-sm text-muted-foreground">
-                <div className="flex items-center gap-2">
-                  <span>PM:</span>
-                  <span>{project.pm}</span>
-                </div>
-                <div className="flex items-center gap-2">
-                  <span>DM:</span>
-                  <span>{project.dm}</span>
-                </div>
-                <div className="flex items-center gap-2">
-                  <span>Team:</span>
-                  <Badge variant="secondary">{project.resources} members</Badge>
-                </div>
-                <div className="flex items-center gap-2">
-                  <Calendar className="w-3 h-3" />
-                  <span>{new Date(project.startDate).toLocaleDateString()}</span>
-                </div>
-              </div>
-
-              <div className="mt-4 flex flex-col gap-2">
-                <Button size="sm" onClick={() => onViewDetails(project.id)} className="gap-2">
-                  <Eye className="w-4 h-4" />
-                  View Details
-                </Button>
-                <Button size="sm" variant="outline" onClick={() => onViewReports(project.id)} className="gap-2">
-                  <FileText className="w-4 h-4" />
-                  View Reports
-                </Button>
-              </div>
-            </div>
-
-            {/* 52 Weeks Timeline */}
-            <ProjectTimeline
-              weeks={project.weeks}
-              currentWeek={project.weeks.filter((w) => w !== "grey").length}
-              onWeekClick={(weekNumber) => onWeekClick(project.id, weekNumber)}
-            />
-          </div>
-        </Card>
-      </div>
-    );
-  }
-
   return (
     <div className="space-y-4">
       <div className="flex items-center justify-between">
         <div>
           <h1 className="text-2xl font-bold">Projects</h1>
-          <p className="text-xs text-muted-foreground">Click on project to view 52-week timeline</p>
+          <p className="text-xs text-muted-foreground">Click on project to view details</p>
         </div>
         <Button onClick={onNewProject} className="gap-2 h-9">
           <Plus className="w-4 h-4" />
@@ -393,7 +164,7 @@ export default function ProjectsView({ onNewProject, onViewDetails, onViewReport
                   borderLeftColor: status === 'green' ? '#22c55e' :
                                   status === 'amber' ? '#f59e0b' : '#ef4444'
                 }}
-                onClick={() => setSelectedProject(project.id)}
+                onClick={() => onViewDetails(project.id)}
               >
                 <div className="space-y-1.5">
                   <div className="flex items-start justify-between gap-1.5">

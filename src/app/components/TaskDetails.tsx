@@ -42,7 +42,6 @@ import {
 import { cn } from "./ui/utils";
 import {
   MAX_TASK_DEPTH,
-  TEAM_MEMBERS,
   getAncestors,
   getChildren,
   getDepth,
@@ -89,7 +88,6 @@ const MAX_VISIBLE_LEVELS = 20;
 interface SubtaskFormState {
   parentId: string;
   title: string;
-  assignee: string;
   priority: TaskPriority;
   description: string;
 }
@@ -280,7 +278,6 @@ export default function TaskDetails({
     setSubtaskForm({
       parentId,
       title: "",
-      assignee: parent?.assignees[0] ?? task.assignees[0] ?? "",
       priority: "medium",
       description: "",
     });
@@ -294,7 +291,7 @@ export default function TaskDetails({
       parentId: subtaskForm.parentId,
       title: subtaskForm.title.trim(),
       description: subtaskForm.description.trim() || undefined,
-      assignees: subtaskForm.assignee ? [subtaskForm.assignee] : [],
+      assignees: [],
       priority: subtaskForm.priority,
       labels: [],
       status: "doing",
@@ -548,25 +545,7 @@ export default function TaskDetails({
                   onKeyDown={(e) => e.key === "Enter" && saveSubtask()}
                 />
               </div>
-              <div className="grid grid-cols-2 gap-3">
-                <div className="space-y-2">
-                  <Label>Assignee</Label>
-                  <Select
-                    value={subtaskForm.assignee}
-                    onValueChange={(value) => setSubtaskForm({ ...subtaskForm, assignee: value })}
-                  >
-                    <SelectTrigger>
-                      <SelectValue placeholder="Select assignee" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {TEAM_MEMBERS.map((member) => (
-                        <SelectItem key={member} value={member}>
-                          {member}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                </div>
+              <div className="grid gap-3">
                 <div className="space-y-2">
                   <Label>Priority</Label>
                   <Select
