@@ -57,6 +57,7 @@ const navigation: NavItem[] = [
   { id: "dashboard", label: "Dashboard", icon: LayoutDashboard },
   { id: "projects", label: "Projects", icon: FolderKanban },
   { id: "daily-updates", label: "Daily Updates", icon: ClipboardList },
+  { id: "updates", label: "Weekly Updates", icon: CalendarRange },
   { id: "tasks", label: "Tasks", icon: ListChecks },
   { id: "resources", label: "Resource Allocation", icon: Users },
   { id: "resource-utilization", label: "Resource Utilization", icon: UserCheck },
