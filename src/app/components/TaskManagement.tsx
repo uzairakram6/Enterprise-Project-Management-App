@@ -36,11 +36,18 @@ import {
   getAncestors,
   getSubtree,
   newTaskId,
+  collectAvailableLabelTags,
+  derivePriorityFromLabelTags,
+  getTaskLabelTags,
+  getVisibleTaskLabelTags,
+  getLabelTagSortOrder,
+  taskLabelTagsMatchQuery,
+  taskMatchesLabelTagFilter,
   type Task,
   type TaskStatus,
-  type TaskPriority,
   type TaskUpdate,
 } from "../data/tasks";
+import LabelTagSelect from "./LabelTagSelect";
 
 interface TaskManagementProps {
   tasks: Task[];
@@ -65,17 +72,16 @@ const STATUS_LABEL: Record<TaskStatus, string> = {
   "on-hold": "On Hold",
 };
 
-const PRIORITY_ORDER: Record<TaskPriority, number> = {
-  high: 0,
-  medium: 1,
-  low: 2,
+const LABEL_TAG_BADGE: Record<string, string> = {
+  "High Priority": "bg-red-100 text-red-700 border-red-200",
+  "Medium Priority": "bg-amber-100 text-amber-700 border-amber-200",
+  "Low Priority": "bg-blue-100 text-blue-700 border-blue-200",
+  "Milestone 1": "bg-purple-100 text-purple-700 border-purple-200",
 };
 
-const PRIORITY_BADGE: Record<TaskPriority, string> = {
-  high: "bg-red-50 text-red-700 border-red-200",
-  medium: "bg-amber-50 text-amber-700 border-amber-200",
-  low: "bg-blue-50 text-blue-700 border-blue-200",
-};
+function labelTagBadgeClass(tag: string): string {
+  return LABEL_TAG_BADGE[tag] ?? "bg-gray-100 text-gray-700 border-gray-200";
+}
 
 const STATUS_BADGE: Record<TaskStatus, string> = {
   doing: "bg-blue-50 text-blue-700 border-blue-200",
@@ -86,12 +92,12 @@ const STATUS_BADGE: Record<TaskStatus, string> = {
 };
 
 const TASK_GRID_COLUMNS =
-  "grid-cols-[minmax(16rem,1fr)_minmax(10.5rem,12rem)_6rem_6.5rem_5rem_7rem]";
+  "grid-cols-[minmax(16rem,1fr)_minmax(10.5rem,12rem)_7rem_6.5rem_5rem_7rem]";
 
 interface FilterState {
   project: string;
   status: string;
-  priority: string;
+  labelTag: string;
   assignee: string;
   hasBlockers: string;
   overdue: string;
@@ -100,7 +106,7 @@ interface FilterState {
 const EMPTY_FILTERS: FilterState = {
   project: "all",
   status: "all",
-  priority: "all",
+  labelTag: "all",
   assignee: "all",
   hasBlockers: "all",
   overdue: "all",
@@ -124,8 +130,8 @@ function matchesTask(
   // Status filter
   if (filters.status !== "all" && task.status !== filters.status) return false;
 
-  // Priority filter
-  if (filters.priority !== "all" && task.priority !== filters.priority) return false;
+  // Label tag filter
+  if (!taskMatchesLabelTagFilter(task, filters.labelTag)) return false;
 
   // Assignee filter
   if (filters.assignee !== "all") {
@@ -156,9 +162,9 @@ function matchesTask(
     const q = search.toLowerCase();
     const inTitle = task.title.toLowerCase().includes(q);
     const inDesc = task.description?.toLowerCase().includes(q) ?? false;
-    const inLabels = task.labels.some((l) => l.toLowerCase().includes(q));
+    const inLabelTags = taskLabelTagsMatchQuery(task, q);
     const inAssignees = task.assignees.some((a) => a.toLowerCase().includes(q));
-    if (!inTitle && !inDesc && !inLabels && !inAssignees) return false;
+    if (!inTitle && !inDesc && !inLabelTags && !inAssignees) return false;
   }
 
   return true;
@@ -166,7 +172,7 @@ function matchesTask(
 
 function sortTasks(tasks: Task[]) {
   return [...tasks].sort((a, b) => {
-    const priorityDiff = PRIORITY_ORDER[a.priority] - PRIORITY_ORDER[b.priority];
+    const priorityDiff = getLabelTagSortOrder(a) - getLabelTagSortOrder(b);
     if (priorityDiff !== 0) return priorityDiff;
     if (a.dueDate && b.dueDate) {
       return new Date(a.dueDate).getTime() - new Date(b.dueDate).getTime();
@@ -279,15 +285,21 @@ export default function TaskManagement({
   const [showForm, setShowForm] = useState(false);
   const [editingTask, setEditingTask] = useState<Task | null>(null);
   const [subtaskFormParentId, setSubtaskFormParentId] = useState<string | null>(null);
+  const [customLabelTags, setCustomLabelTags] = useState<string[]>([]);
 
   const [formData, setFormData] = useState({
     title: "",
     projectId: "",
-    priority: "medium" as TaskPriority,
+    labelTags: ["Medium Priority"] as string[],
     description: "",
     dueDate: "",
     assignees: [] as string[],
   });
+
+  const availableLabelTags = useMemo(
+    () => collectAvailableLabelTags(tasks, customLabelTags),
+    [tasks, customLabelTags],
+  );
 
   const visibleRows = useMemo(
     () => buildVisibleRows(tasks, expanded, filters, search, updates),
@@ -324,7 +336,7 @@ export default function TaskManagement({
     setFormData({
       title: task.title,
       projectId: task.projectId,
-      priority: task.priority,
+      labelTags: getTaskLabelTags(task),
       description: task.description ?? "",
       dueDate: task.dueDate ?? "",
       assignees: [...task.assignees],
@@ -351,6 +363,9 @@ export default function TaskManagement({
       return;
     }
 
+    const labelTags = formData.labelTags.map((tag) => tag.trim()).filter(Boolean);
+    const priority = derivePriorityFromLabelTags(labelTags);
+
     if (editingTask) {
       onTasksChange(
         tasks.map((t) =>
@@ -359,7 +374,8 @@ export default function TaskManagement({
                 ...t,
                 title: formData.title,
                 projectId: formData.projectId,
-                priority: formData.priority,
+                priority,
+                labels: labelTags,
                 description: formData.description || undefined,
                 dueDate: formData.dueDate || undefined,
                 assignees: formData.assignees,
@@ -377,8 +393,8 @@ export default function TaskManagement({
         description: formData.description || undefined,
         assignees: formData.assignees,
         dueDate: formData.dueDate || undefined,
-        priority: formData.priority,
-        labels: [],
+        priority,
+        labels: labelTags,
         status: "doing",
         createdBy: "Hamza Khan (PM)",
         createdAt: new Date().toISOString().split("T")[0],
@@ -394,8 +410,8 @@ export default function TaskManagement({
         description: formData.description || undefined,
         assignees: formData.assignees,
         dueDate: formData.dueDate || undefined,
-        priority: formData.priority,
-        labels: [],
+        priority,
+        labels: labelTags,
         status: "doing",
         createdBy: "Hamza Khan (PM)",
         createdAt: new Date().toISOString().split("T")[0],
@@ -410,7 +426,7 @@ export default function TaskManagement({
     setFormData({
       title: "",
       projectId: "",
-      priority: "medium",
+      labelTags: ["Medium Priority"],
       description: "",
       dueDate: "",
       assignees: [],
@@ -426,7 +442,7 @@ export default function TaskManagement({
     setFormData({
       title: "",
       projectId: "",
-      priority: "medium",
+      labelTags: ["Medium Priority"],
       description: "",
       dueDate: "",
       assignees: [],
@@ -441,7 +457,7 @@ export default function TaskManagement({
     setFormData({
       title: "",
       projectId: parent?.projectId ?? "",
-      priority: "medium",
+      labelTags: parent ? getTaskLabelTags(parent) : ["Medium Priority"],
       description: "",
       dueDate: "",
       assignees: parent?.assignees ? [...parent.assignees] : [],
@@ -481,7 +497,7 @@ export default function TaskManagement({
           <div className="relative flex-1 min-w-0">
             <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-slate-500" />
             <Input
-              placeholder="Search tasks, descriptions, labels, assignees..."
+              placeholder="Search tasks, descriptions, label tags, assignees..."
               value={search}
               onChange={(e) => setSearch(e.target.value)}
               className="h-11 rounded-xl border-slate-200 bg-slate-100/80 pl-12 pr-10 text-base shadow-inner shadow-slate-200/50 placeholder:text-slate-500 focus-visible:bg-white"
@@ -573,17 +589,19 @@ export default function TaskManagement({
             </Select>
 
             <Select
-              value={filters.priority}
-              onValueChange={(v) => setFilters((f) => ({ ...f, priority: v }))}
+              value={filters.labelTag}
+              onValueChange={(v) => setFilters((f) => ({ ...f, labelTag: v }))}
             >
-              <SelectTrigger className="h-10 w-[150px] text-sm">
-                <SelectValue placeholder="Priority" />
+              <SelectTrigger className="h-10 w-[155px] text-sm">
+                <SelectValue placeholder="Label tags" />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="all">All Priority</SelectItem>
-                <SelectItem value="high">High</SelectItem>
-                <SelectItem value="medium">Medium</SelectItem>
-                <SelectItem value="low">Low</SelectItem>
+                <SelectItem value="all">All Label tags</SelectItem>
+                {availableLabelTags.map((tag) => (
+                  <SelectItem key={tag} value={tag}>
+                    {tag}
+                  </SelectItem>
+                ))}
               </SelectContent>
             </Select>
 
@@ -683,19 +701,18 @@ export default function TaskManagement({
                   </SelectContent>
                 </Select>
               )}
-              <Select
-                value={formData.priority}
-                onValueChange={(val: TaskPriority) => setFormData({ ...formData, priority: val })}
-              >
-                <SelectTrigger className="h-10 text-sm">
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="low">Low</SelectItem>
-                  <SelectItem value="medium">Medium</SelectItem>
-                  <SelectItem value="high">High</SelectItem>
-                </SelectContent>
-              </Select>
+              <LabelTagSelect
+                value={formData.labelTags}
+                onChange={(labelTags) => setFormData({ ...formData, labelTags })}
+                availableTags={availableLabelTags}
+                onCreateTag={(tag) =>
+                  setCustomLabelTags((prev) =>
+                    prev.includes(tag) ? prev : [...prev, tag],
+                  )
+                }
+                placeholder="Label tags"
+                className="h-10 w-full text-sm"
+              />
               <Input
                 type="date"
                 className="h-10 text-sm"
@@ -731,7 +748,7 @@ export default function TaskManagement({
           <div className={cn("grid min-w-[54rem] items-center gap-3 border-b bg-slate-100/80 px-5 py-3 text-xs font-semibold uppercase tracking-wide text-slate-600", TASK_GRID_COLUMNS)}>
             <span className="min-w-0">Task</span>
             <span className="min-w-0">Project</span>
-            <span className="min-w-0">Priority</span>
+            <span className="min-w-0">Label Tags</span>
             <span className="min-w-0">Status</span>
             <span className="min-w-0 text-right">Due</span>
             <span className="min-w-0" />
@@ -761,6 +778,12 @@ export default function TaskManagement({
                   const rollup = getRollup(tasks, updates, task.id);
                   const isExpanded = expanded.has(task.id);
                   const overdue = isOverdue(task);
+                  const { visible: visibleLabelTags, overflow: labelTagOverflow } =
+                    getVisibleTaskLabelTags(task);
+                  const hiddenLabelTagsTitle =
+                    labelTagOverflow > 0
+                      ? getTaskLabelTags(task).slice(2).join(", ")
+                      : undefined;
 
                   return (
                     <li
@@ -830,15 +853,6 @@ export default function TaskManagement({
                               Overdue
                             </Badge>
                           )}
-                          {task.labels.map((label) => (
-                            <Badge
-                              key={label}
-                              variant="outline"
-                              className="h-6 shrink-0 rounded-md border-slate-200 bg-slate-50 px-2 text-xs text-slate-600"
-                            >
-                              {label}
-                            </Badge>
-                          ))}
                         </div>
                       </div>
 
@@ -852,14 +866,29 @@ export default function TaskManagement({
                         </Badge>
                       </span>
 
-                      {/* Priority */}
-                      <span className="min-w-0">
-                        <Badge
-                          variant="outline"
-                          className={cn("h-7 rounded-md px-2.5 text-sm font-semibold capitalize", PRIORITY_BADGE[task.priority])}
-                        >
-                          {task.priority}
-                        </Badge>
+                      {/* Label tags */}
+                      <span className="min-w-0 flex flex-wrap gap-1">
+                        {visibleLabelTags.map((tag) => (
+                          <Badge
+                            key={tag}
+                            variant="outline"
+                            className={cn(
+                              "h-7 max-w-full truncate rounded-md px-2 text-xs font-semibold",
+                              labelTagBadgeClass(tag),
+                            )}
+                          >
+                            {tag}
+                          </Badge>
+                        ))}
+                        {labelTagOverflow > 0 && (
+                          <Badge
+                            variant="outline"
+                            className="h-7 shrink-0 rounded-md border-slate-200 bg-slate-100 px-2 text-xs font-semibold text-slate-600"
+                            title={hiddenLabelTagsTitle}
+                          >
+                            +{labelTagOverflow}
+                          </Badge>
+                        )}
                       </span>
 
                       {/* Status */}

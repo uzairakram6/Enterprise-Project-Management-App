@@ -649,3 +649,136 @@ export function newTaskId(): string {
   idCounter += 1;
   return `task-${Date.now()}-${idCounter}`;
 }
+
+// ── Label tags (replaces priority in the Tasks UI) ──────────────────────
+
+export const DEFAULT_LABEL_TAGS = [
+  "High Priority",
+  "Medium Priority",
+  "Low Priority",
+  "Milestone 1",
+] as const;
+
+export type DefaultLabelTag = (typeof DEFAULT_LABEL_TAGS)[number];
+
+const PRIORITY_PRIORITY_TAGS = new Set<string>([
+  "High Priority",
+  "Medium Priority",
+  "Low Priority",
+]);
+
+const LEGACY_MILESTONE_ALIASES = new Map<string, string>([
+  ["milestone-1", "Milestone 1"],
+  ["milestone 1", "Milestone 1"],
+]);
+
+/** Internal labels excluded from the Tasks label-tag UI. */
+const HIDDEN_LABEL_TAGS = new Set(["daily-updates"]);
+
+export const PRIORITY_TO_LABEL_TAG: Record<TaskPriority, DefaultLabelTag> = {
+  high: "High Priority",
+  medium: "Medium Priority",
+  low: "Low Priority",
+};
+
+/** Canonical display name for a stored label tag value. */
+export function normalizeLabelTag(tag: string): string {
+  const trimmed = tag.trim();
+  if (!trimmed) return trimmed;
+  const alias = LEGACY_MILESTONE_ALIASES.get(trimmed.toLowerCase());
+  if (alias) return alias;
+  const match = DEFAULT_LABEL_TAGS.find((t) => t.toLowerCase() === trimmed.toLowerCase());
+  return match ?? trimmed;
+}
+
+/** Lowercase, hyphen-normalized string for search/filter matching. */
+export function normalizeLabelTagForSearch(tag: string): string {
+  return normalizeLabelTag(tag).toLowerCase().replace(/[\s_-]+/g, " ").trim();
+}
+
+export function taskHasPriorityLabelTag(task: Task): boolean {
+  return task.labels.some((l) => PRIORITY_PRIORITY_TAGS.has(normalizeLabelTag(l)));
+}
+
+/** Label tags shown in the Tasks table — includes a derived priority tag for legacy rows. */
+export function getTaskLabelTags(task: Task): string[] {
+  const normalized = task.labels
+    .map(normalizeLabelTag)
+    .filter(Boolean)
+    .filter((tag) => !HIDDEN_LABEL_TAGS.has(tag.toLowerCase()));
+  const unique = [...new Set(normalized)];
+  if (!taskHasPriorityLabelTag(task)) {
+    unique.unshift(PRIORITY_TO_LABEL_TAG[task.priority]);
+  }
+  return unique;
+}
+
+const MAX_VISIBLE_LABEL_TAGS = 2;
+
+/** First N tags for table display plus overflow count (e.g. 5 tags → 2 visible, +3). */
+export function getVisibleTaskLabelTags(task: Task): {
+  visible: string[];
+  overflow: number;
+} {
+  const tags = getTaskLabelTags(task);
+  if (tags.length <= MAX_VISIBLE_LABEL_TAGS) {
+    return { visible: tags, overflow: 0 };
+  }
+  return {
+    visible: tags.slice(0, MAX_VISIBLE_LABEL_TAGS),
+    overflow: tags.length - MAX_VISIBLE_LABEL_TAGS,
+  };
+}
+
+export function derivePriorityFromLabelTags(tags: string[]): TaskPriority {
+  const normalized = tags.map(normalizeLabelTag);
+  if (normalized.includes("High Priority")) return "high";
+  if (normalized.includes("Low Priority")) return "low";
+  return "medium";
+}
+
+export function collectAvailableLabelTags(tasks: Task[], extra: string[] = []): string[] {
+  const seen = new Set<string>();
+  const ordered: string[] = [];
+  const add = (tag: string) => {
+    const normalized = normalizeLabelTag(tag);
+    if (!normalized || seen.has(normalized)) return;
+    seen.add(normalized);
+    ordered.push(normalized);
+  };
+  for (const tag of DEFAULT_LABEL_TAGS) add(tag);
+  for (const tag of extra) add(tag);
+  for (const task of tasks) {
+    for (const tag of getTaskLabelTags(task)) add(tag);
+  }
+  return ordered;
+}
+
+export function labelTagMatchesQuery(tag: string, query: string): boolean {
+  const q = normalizeLabelTagForSearch(query);
+  if (!q) return true;
+  const normalized = normalizeLabelTagForSearch(tag);
+  if (normalized.includes(q)) return true;
+  const words = q.split(" ").filter(Boolean);
+  return words.length > 1 && words.every((w) => normalized.includes(w));
+}
+
+export function taskLabelTagsMatchQuery(task: Task, query: string): boolean {
+  return getTaskLabelTags(task).some((tag) => labelTagMatchesQuery(tag, query));
+}
+
+export function taskMatchesLabelTagFilter(task: Task, filterTag: string): boolean {
+  if (filterTag === "all") return true;
+  const target = normalizeLabelTagForSearch(filterTag);
+  return getTaskLabelTags(task).some(
+    (tag) => normalizeLabelTagForSearch(tag) === target,
+  );
+}
+
+export function getLabelTagSortOrder(task: Task): number {
+  const tags = getTaskLabelTags(task);
+  if (tags.includes("High Priority")) return 0;
+  if (tags.includes("Medium Priority")) return 1;
+  if (tags.includes("Low Priority")) return 2;
+  return 3;
+}
