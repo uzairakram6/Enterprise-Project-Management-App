@@ -228,8 +228,18 @@ function loadSessions(tasks: Task[]): Record<string, DailySession> {
     if (raw) {
       const parsed = JSON.parse(raw) as Record<string, Partial<DailySession>>;
       const normalized: Record<string, DailySession> = {};
+      let migrated = false;
       for (const [date, session] of Object.entries(parsed)) {
-        normalized[date] = normalizeSession(session, date);
+        const next = normalizeSession(session, date);
+        normalized[date] = next;
+        if (
+          session.entries?.some((e) => e.projectId && e.projectId !== normalizeProjectId(e.projectId))
+        ) {
+          migrated = true;
+        }
+      }
+      if (migrated) {
+        saveSessions(normalized);
       }
       return normalized;
     }
@@ -718,7 +728,7 @@ export default function DailyUpdates({ tasks, onTasksChange }: DailyUpdatesProps
 
         {/* Today / Selected Date Tab */}
         <TabsContent value="today" className="space-y-6 mt-4">
-          {session.submittedAt && (
+          {session.submittedAt && !Number.isNaN(parseISO(session.submittedAt).getTime()) && (
             <Card className="p-4 bg-green-50 border-green-200">
               <div className="flex items-center gap-2 text-green-800">
                 <CheckCircle2 className="w-5 h-5" />
