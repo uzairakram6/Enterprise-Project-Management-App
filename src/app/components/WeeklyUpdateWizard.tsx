@@ -52,6 +52,9 @@ export interface WeeklyUpdateSubmission {
   projectName: string;
   weekDate: string;
   summary: string;
+  metrics?: Record<string, { status: "green" | "amber" | "red"; notes?: string }>;
+  additionalNotes?: string;
+  attachmentName?: string | null;
 }
 
 interface WeeklyUpdateWizardProps {
@@ -256,6 +259,14 @@ export default function WeeklyUpdateWizard({ onBack, onSubmit }: WeeklyUpdateWiz
       projectName: selectedProject.name,
       weekDate: formatWeekRange(selectedWeek),
       summary: executiveSummary.trim(),
+      metrics: Object.fromEntries(
+        CORE_METRICS.map((metric) => [
+          metric.id,
+          { status: metricStatuses[metric.id] ?? "green" },
+        ]),
+      ),
+      additionalNotes: additionalNotes.trim() || undefined,
+      attachmentName: attachmentName,
     });
     toast.success("Weekly update submitted for review", {
       description: `${selectedProject.name} · Week ${selectedWeek.weekNumber} sent to your manager for approval.`,
