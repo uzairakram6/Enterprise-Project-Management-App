@@ -1,5 +1,5 @@
-import React, { useState } from "react";
-import { LayoutDashboard, FolderKanban, Users, Menu, X, ClipboardList, UserCircle, ListChecks } from "lucide-react";
+import { useState } from "react";
+import { LayoutDashboard, FolderKanban, Users, Menu, X, ClipboardList, UserCircle, ListChecks, UserCheck } from "lucide-react";
 import { Button } from "./components/ui/button";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "./components/ui/select";
 import { Badge } from "./components/ui/badge";
@@ -7,6 +7,7 @@ import Dashboard from "./components/Dashboard";
 import ProjectsView from "./components/ProjectsView";
 import WeeklyUpdateWizard from "./components/WeeklyUpdateWizard";
 import ResourceAllocation from "./components/ResourceAllocation";
+import ResourceAvailability from "./components/ResourceAvailability";
 import NewProject from "./components/NewProject";
 import ProjectDetails from "./components/ProjectDetails";
 import ProjectSettings from "./components/ProjectSettings";
@@ -14,13 +15,12 @@ import ViewReports from "./components/ViewReports";
 import WeekUpdateView from "./components/WeekUpdateView";
 import ProjectWorkflowSettings from "./components/ProjectWorkflowSettings";
 import DailyUpdates from "./components/DailyUpdates";
-import { DEFAULT_PROJECT_NAME } from "./data/projects";
-import ParentTaskManagement from "./components/ParentTaskManagement";
-import ParentTaskDetails from "./components/ParentTaskDetails";
-import { INITIAL_PARENT_TASKS, type ParentTask } from "./data/parentTasks";
+import TaskManagement from "./components/TaskManagement";
+import TaskDetails from "./components/TaskDetails";
+import { INITIAL_TASKS, INITIAL_TASK_UPDATES, type Task } from "./data/tasks";
 import { Toaster } from "./components/ui/sonner";
 
-type Page = "dashboard" | "projects" | "updates" | "daily-updates" | "parent-tasks" | "resources";
+type Page = "dashboard" | "projects" | "updates" | "daily-updates" | "tasks" | "resources" | "resource-utilization";
 type SubPage =
   | "new-project"
   | "edit-project"
@@ -29,15 +29,16 @@ type SubPage =
   | "week-update"
   | "project-workflows"
   | "project-settings"
-  | "parent-task-details"
+  | "task-details"
   | null;
 
 const navigation = [
   { id: "dashboard" as Page, label: "Dashboard", icon: LayoutDashboard },
   { id: "projects" as Page, label: "Projects", icon: FolderKanban },
   { id: "daily-updates" as Page, label: "Daily Updates", icon: ClipboardList },
-  { id: "parent-tasks" as Page, label: "Parent Tasks", icon: ListChecks },
+  { id: "tasks" as Page, label: "Tasks", icon: ListChecks },
   { id: "resources" as Page, label: "Resource Allocation", icon: Users },
+  { id: "resource-utilization" as Page, label: "Resource Utilization", icon: UserCheck },
 ];
 
 type UserRole = "pm" | "dm" | "em" | "developer" | "admin";
@@ -48,8 +49,8 @@ export default function App() {
   const [sidebarOpen, setSidebarOpen] = useState(true);
   const [selectedProjectId, setSelectedProjectId] = useState<number | null>(null);
   const [selectedWeekNumber, setSelectedWeekNumber] = useState<number | null>(null);
-  const [selectedParentTaskId, setSelectedParentTaskId] = useState<number | null>(null);
-  const [parentTasks, setParentTasks] = useState<ParentTask[]>(INITIAL_PARENT_TASKS);
+  const [selectedTaskId, setSelectedTaskId] = useState<string | null>(null);
+  const [tasks, setTasks] = useState<Task[]>(INITIAL_TASKS);
   const [userRole, setUserRole] = useState<UserRole>("pm");
 
   const handleNewProject = () => {
@@ -76,17 +77,17 @@ export default function App() {
     setCurrentSubPage(null);
     setSelectedProjectId(null);
     setSelectedWeekNumber(null);
-    setSelectedParentTaskId(null);
+    setSelectedTaskId(null);
   };
 
-  const handleViewParentTask = (taskId: number) => {
-    setSelectedParentTaskId(taskId);
-    setCurrentSubPage("parent-task-details");
+  const handleViewTask = (taskId: string) => {
+    setSelectedTaskId(taskId);
+    setCurrentSubPage("task-details");
   };
 
-  const handleBackToParentTasks = () => {
+  const handleBackToTasks = () => {
     setCurrentSubPage(null);
-    setSelectedParentTaskId(null);
+    setSelectedTaskId(null);
   };
 
   const handleManageWorkflows = (projectId: number) => {
@@ -148,18 +149,22 @@ export default function App() {
       return (
         <WeekUpdateView
           weekNumber={selectedWeekNumber}
-          projectName={DEFAULT_PROJECT_NAME}
+          projectName="Multi-Tenancy Platform"
           onBack={handleBackToMain}
         />
       );
     }
-    if (currentSubPage === "parent-task-details" && selectedParentTaskId) {
-      const selectedParentTask = parentTasks.find((task) => task.id === selectedParentTaskId);
-      if (!selectedParentTask) {
-        handleBackToParentTasks();
-        return null;
-      }
-      return <ParentTaskDetails task={selectedParentTask} onBack={handleBackToParentTasks} />;
+    if (currentSubPage === "task-details" && selectedTaskId) {
+      return (
+        <TaskDetails
+          taskId={selectedTaskId}
+          tasks={tasks}
+          updates={INITIAL_TASK_UPDATES}
+          onTasksChange={setTasks}
+          onOpenTask={handleViewTask}
+          onBack={handleBackToTasks}
+        />
+      );
     }
 
     // Render main pages
@@ -178,17 +183,20 @@ export default function App() {
       case "updates":
         return <WeeklyUpdateWizard userRole={userRole} />;
       case "daily-updates":
-        return <DailyUpdates />;
-      case "parent-tasks":
+        return <DailyUpdates tasks={tasks} onTasksChange={setTasks} />;
+      case "tasks":
         return (
-          <ParentTaskManagement
-            tasks={parentTasks}
-            onTasksChange={setParentTasks}
-            onViewTask={handleViewParentTask}
+          <TaskManagement
+            tasks={tasks}
+            updates={INITIAL_TASK_UPDATES}
+            onTasksChange={setTasks}
+            onViewTask={handleViewTask}
           />
         );
       case "resources":
         return <ResourceAllocation />;
+      case "resource-utilization":
+        return <ResourceAvailability />;
       default:
         return <Dashboard />;
     }

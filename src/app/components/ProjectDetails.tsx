@@ -1,5 +1,4 @@
-import { DEFAULT_PROJECT_NAME } from "../data/projects";
-import React, { useMemo, useState } from "react";
+import { useMemo, useState } from "react";
 import { Card } from "./ui/card";
 import { Button } from "./ui/button";
 import { Badge } from "./ui/badge";
@@ -42,6 +41,8 @@ import {
 import {
   ArrowLeft,
   Calendar,
+  ChevronLeft,
+  ChevronRight,
   Users,
   GitBranch,
   Settings,
@@ -50,6 +51,7 @@ import {
   Edit2,
   Trash2,
   MoreHorizontal,
+  RotateCcw,
   Workflow,
 } from "lucide-react";
 
@@ -254,19 +256,31 @@ const weeklySummaries: Record<number, {
   },
 };
 
-// Project start date used to anchor the weekly timeline (matches the project's start date)
-const PROJECT_START = new Date(2026, 0, 15);
-
-// Number of weeks elapsed so far (the current week is the last filled one)
-const CURRENT_WEEK = 23;
 const TOTAL_WEEKS = 52;
+const MS_PER_WEEK = 7 * 24 * 60 * 60 * 1000;
+const PROJECT_START_MONTH = 0;
+const PROJECT_START_DAY = 15;
+const TODAY = new Date();
+const CURRENT_TIMELINE_YEAR = TODAY.getFullYear();
+
+function clampWeek(week: number) {
+  return Math.min(TOTAL_WEEKS, Math.max(1, week));
+}
+
+function getProjectStart(year: number) {
+  return new Date(year, PROJECT_START_MONTH, PROJECT_START_DAY);
+}
+
+function getCurrentProjectWeek(today = TODAY) {
+  const projectStart = getProjectStart(today.getFullYear());
+  if (today < projectStart) return 1;
+  return clampWeek(Math.floor((today.getTime() - projectStart.getTime()) / MS_PER_WEEK) + 1);
+}
+
+const CURRENT_WEEK = getCurrentProjectWeek();
 
 // Fixed 4-week "months" so every column is consistent
 const WEEKS_PER_MONTH = 4;
-const MONTH_LABELS = [
-  'Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun',
-  'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec',
-];
 
 interface WeekData {
   week: number;
@@ -292,26 +306,36 @@ const KNOWN_WEEK_STATUS: Record<number, WeekStatus> = {
   23: 'green',
 };
 
-// Generate the full project timeline anchored to the project start date
-function generateWeekData(): WeekData[] {
+function getDefaultSelectedWeek(year: number) {
+  if (year === CURRENT_TIMELINE_YEAR) return CURRENT_WEEK;
+  if (year < CURRENT_TIMELINE_YEAR) return TOTAL_WEEKS;
+  return 1;
+}
+
+// Generate the full project timeline anchored to the project start date for the selected year.
+function generateWeekData(year: number): WeekData[] {
+  const projectStart = getProjectStart(year);
+  const isCurrentYear = year === CURRENT_TIMELINE_YEAR;
+  const isPastYear = year < CURRENT_TIMELINE_YEAR;
+
   return Array.from({ length: TOTAL_WEEKS }, (_, i) => {
-    const start = new Date(PROJECT_START);
+    const start = new Date(projectStart);
     start.setDate(start.getDate() + i * 7);
     const end = new Date(start);
     end.setDate(end.getDate() + 6);
 
     const weekNumber = i + 1;
     let status: WeekStatus = 'grey';
-    if (weekNumber <= CURRENT_WEEK) {
-      status = KNOWN_WEEK_STATUS[weekNumber] ?? (() => {
-        const rand = seededRandom(i);
+    if (isPastYear || (isCurrentYear && weekNumber <= CURRENT_WEEK)) {
+      status = (isCurrentYear ? KNOWN_WEEK_STATUS[weekNumber] : undefined) ?? (() => {
+        const rand = seededRandom(year * 100 + i);
         if (rand < 0.82) return 'green';
         if (rand < 0.94) return 'amber';
         return 'red';
       })();
     }
 
-    return { week: i, status, start, end, isCurrent: weekNumber === CURRENT_WEEK };
+    return { week: i, status, start, end, isCurrent: isCurrentYear && weekNumber === CURRENT_WEEK };
   });
 }
 
@@ -319,9 +343,9 @@ function generateWeekData(): WeekData[] {
 function groupWeeksByMonth(weeks: WeekData[]) {
   const columns: { label: string; weeks: WeekData[] }[] = [];
   for (let i = 0; i < weeks.length; i += WEEKS_PER_MONTH) {
-    const chunkIndex = i / WEEKS_PER_MONTH;
+    const label = weeks[i]?.start.toLocaleDateString('en-US', { month: 'short' }) ?? "";
     columns.push({
-      label: MONTH_LABELS[chunkIndex % MONTH_LABELS.length],
+      label,
       weeks: weeks.slice(i, i + WEEKS_PER_MONTH),
     });
   }
@@ -331,6 +355,10 @@ function groupWeeksByMonth(weeks: WeekData[]) {
 function formatRange(w: WeekData) {
   const opts: Intl.DateTimeFormatOptions = { month: 'short', day: 'numeric' };
   return `${w.start.toLocaleDateString('en-US', opts)} - ${w.end.toLocaleDateString('en-US', opts)}`;
+}
+
+function getWeekStorageKey(year: number, weekNumber: number) {
+  return `${year}-${weekNumber}`;
 }
 
 const STATUS_LABEL: Record<WeekStatus, string> = {
@@ -362,7 +390,6 @@ function WeekBox({
     red: 'bg-red-500 hover:ring-red-300',
     grey: 'bg-gray-200 hover:ring-gray-300',
   };
-  const isClickable = data.status !== 'grey';
   const label = `Week ${data.week + 1}, ${formatRange(data)}, ${STATUS_LABEL[data.status]}${
     data.isCurrent ? ' (current week)' : ''
   }${isSelected ? ' (selected)' : ''}`;
@@ -373,13 +400,7 @@ function WeekBox({
       ? 'ring-1 ring-foreground/35 ring-offset-1'
       : '';
 
-  const className = `flex-1 w-full min-h-5 rounded-[4px] transition-all outline-none ${colors[data.status]} ${
-    isClickable ? 'cursor-pointer hover:ring-2 focus-visible:ring-2 focus-visible:ring-offset-1' : ''
-  } ${ringClass}`;
-
-  if (!isClickable) {
-    return <div className={className} title={label} aria-hidden="true" />;
-  }
+  const className = `flex-1 w-full min-h-5 rounded-[4px] transition-all outline-none cursor-pointer hover:ring-2 focus-visible:ring-2 focus-visible:ring-offset-1 ${colors[data.status]} ${ringClass}`;
 
   return (
     <button type="button" className={className} onClick={onClick} title={label} aria-label={label} />
@@ -457,7 +478,7 @@ function WeekTaskLineItems({
 
         <div className="mt-3 grid grid-cols-2 gap-3 md:grid-cols-5">
           <div className="rounded-lg border p-3">
-            <p className="text-xs text-muted-foreground">Sub tasks</p>
+            <p className="text-xs text-muted-foreground">Line items</p>
             <p className="mt-1 text-2xl font-bold">{items.length}</p>
           </div>
           <div className="rounded-lg border p-3">
@@ -482,7 +503,7 @@ function WeekTaskLineItems({
       {isEditorOpen && (
         <Card className="p-5">
           <div className="mb-4 flex flex-col gap-1">
-            <h3 className="text-lg">Add weekly sub task</h3>
+            <h3 className="text-lg">Add weekly task line item</h3>
             <p className="text-sm text-muted-foreground">
               This adds a row to Week {weekNumber}. Use it for task-level progress, blockers, and next action.
             </p>
@@ -498,7 +519,7 @@ function WeekTaskLineItems({
               />
             </div>
             <div className="space-y-2">
-              <Label>Sub task *</Label>
+              <Label>Line item *</Label>
               <Input
                 value={draft.lineItem}
                 onChange={(event) => onDraftChange("lineItem", event.target.value)}
@@ -579,7 +600,7 @@ function WeekTaskLineItems({
               Cancel
             </Button>
             <Button onClick={onSaveDraft} disabled={!canSaveDraft}>
-              Save sub task
+              Save line item
             </Button>
           </div>
         </Card>
@@ -591,7 +612,7 @@ function WeekTaskLineItems({
             <TableRow>
               <TableHead className="w-10 pl-4">#</TableHead>
               <TableHead>Parent task</TableHead>
-              <TableHead>Sub task</TableHead>
+              <TableHead>Line item</TableHead>
               <TableHead>Owner</TableHead>
               <TableHead>Role</TableHead>
               <TableHead>Status</TableHead>
@@ -605,7 +626,7 @@ function WeekTaskLineItems({
             {items.length === 0 ? (
               <TableRow>
                 <TableCell colSpan={10} className="h-24 text-center text-muted-foreground">
-                  No sub tasks recorded for this week yet.
+                  No task line items recorded for this week yet.
                 </TableCell>
               </TableRow>
             ) : (
@@ -635,27 +656,50 @@ function WeekTaskLineItems({
 
 export default function ProjectDetails({ onBack, onManageWorkflows, onProjectSettings, onEdit, onDelete, userRole = "pm" }: ProjectDetailsProps) {
   const [activeTab, setActiveTab] = useState("weekly");
+  const [timelineYear, setTimelineYear] = useState(CURRENT_TIMELINE_YEAR);
   const [selectedWeek, setSelectedWeek] = useState<number>(CURRENT_WEEK);
-  const [taskLineItemsByWeek, setTaskLineItemsByWeek] = useState<Record<number, TaskLineItem[]>>(weeklyTaskLineItems);
+  const [taskLineItemsByWeek, setTaskLineItemsByWeek] = useState<Record<string, TaskLineItem[]>>(() =>
+    Object.fromEntries(
+      Object.entries(weeklyTaskLineItems).map(([weekNumber, items]) => [
+        getWeekStorageKey(CURRENT_TIMELINE_YEAR, Number(weekNumber)),
+        items,
+      ]),
+    ),
+  );
   const [lineItemEditorOpen, setLineItemEditorOpen] = useState(false);
   const [lineItemDraft, setLineItemDraft] = useState<TaskLineItem>(EMPTY_LINE_ITEM);
   const [deleteOpen, setDeleteOpen] = useState(false);
 
-  const weekData = useMemo(() => generateWeekData(), []);
+  const timelineYears = useMemo(
+    () => Array.from({ length: 4 }, (_, index) => CURRENT_TIMELINE_YEAR - 3 + index),
+    [],
+  );
+  const minTimelineYear = timelineYears[0];
+  const weekData = useMemo(() => generateWeekData(timelineYear), [timelineYear]);
   const monthColumns = useMemo(() => groupWeeksByMonth(weekData), [weekData]);
-  const weeksRemaining = TOTAL_WEEKS - CURRENT_WEEK;
+  const weeksRemaining = timelineYear === CURRENT_TIMELINE_YEAR ? TOTAL_WEEKS - CURRENT_WEEK : 0;
+  const selectedWeekKey = getWeekStorageKey(timelineYear, selectedWeek);
   const selectedWeekData = weekData.find((week) => week.week + 1 === selectedWeek);
   const selectedWeekRange = selectedWeekData ? formatRange(selectedWeekData) : "";
-  const selectedTaskLineItems = taskLineItemsByWeek[selectedWeek] ?? [];
+  const selectedTaskLineItems = taskLineItemsByWeek[selectedWeekKey] ?? [];
+  const savedWeekSummary = timelineYear === CURRENT_TIMELINE_YEAR ? weeklySummaries[selectedWeek] : undefined;
   const selectedWeekSummary =
-    weeklySummaries[selectedWeek] ??
+    savedWeekSummary ??
     {
       status: selectedWeekData?.status ?? "grey",
       submittedBy: "Not submitted",
       dailyCompliance: "No updates submitted",
-      summary: "No weekly summary has been recorded for this week yet.",
-      nextFocus: "Add sub tasks to build this week's operating view.",
+      summary: `No weekly summary has been recorded for Week ${selectedWeek}, ${timelineYear} yet.`,
+      nextFocus: "Add task line items to build this week's operating view.",
     };
+  const timelineStatusText =
+    timelineYear === CURRENT_TIMELINE_YEAR
+      ? `Week ${CURRENT_WEEK} of ${TOTAL_WEEKS} · ${weeksRemaining} remaining`
+      : `Full ${timelineYear} timeline`;
+  const canMoveToPreviousYear = timelineYear > minTimelineYear;
+  const canMoveToNextYear = timelineYear < CURRENT_TIMELINE_YEAR;
+  const canMoveToPreviousWeek = selectedWeek > 1 || canMoveToPreviousYear;
+  const canMoveToNextWeek = selectedWeek < TOTAL_WEEKS || canMoveToNextYear;
   const canSaveLineItem = Boolean(
     lineItemDraft.parentTask.trim() &&
       lineItemDraft.lineItem.trim() &&
@@ -671,6 +715,43 @@ export default function ProjectDetails({ onBack, onManageWorkflows, onProjectSet
     setSelectedWeek(weekNumber);
     setActiveTab("weekly");
     setLineItemEditorOpen(false);
+  };
+
+  const handleTimelineYearChange = (year: number) => {
+    setTimelineYear(year);
+    setSelectedWeek(getDefaultSelectedWeek(year));
+    setActiveTab("weekly");
+    setLineItemEditorOpen(false);
+  };
+
+  const shiftTimelineYear = (direction: -1 | 1) => {
+    const nextYear = timelineYear + direction;
+    if (nextYear < minTimelineYear || nextYear > CURRENT_TIMELINE_YEAR) return;
+    handleTimelineYearChange(nextYear);
+  };
+
+  const shiftSelectedWeek = (direction: -1 | 1) => {
+    const nextWeek = selectedWeek + direction;
+    if (nextWeek >= 1 && nextWeek <= TOTAL_WEEKS) {
+      handleWeekSelect(nextWeek);
+      return;
+    }
+
+    if (nextWeek < 1 && canMoveToPreviousYear) {
+      setTimelineYear(timelineYear - 1);
+      handleWeekSelect(TOTAL_WEEKS);
+      return;
+    }
+
+    if (nextWeek > TOTAL_WEEKS && canMoveToNextYear) {
+      setTimelineYear(timelineYear + 1);
+      handleWeekSelect(1);
+    }
+  };
+
+  const jumpToCurrentWeek = () => {
+    setTimelineYear(CURRENT_TIMELINE_YEAR);
+    handleWeekSelect(CURRENT_WEEK);
   };
 
   const handleDraftChange = (field: keyof TaskLineItem, value: string) => {
@@ -705,7 +786,7 @@ export default function ProjectDetails({ onBack, onManageWorkflows, onProjectSet
     };
     setTaskLineItemsByWeek((current) => ({
       ...current,
-      [selectedWeek]: [newLineItem, ...(current[selectedWeek] ?? [])],
+      [selectedWeekKey]: [newLineItem, ...(current[selectedWeekKey] ?? [])],
     }));
     setLineItemDraft(EMPTY_LINE_ITEM);
     setLineItemEditorOpen(false);
@@ -723,9 +804,9 @@ export default function ProjectDetails({ onBack, onManageWorkflows, onProjectSet
       {/* Header */}
       <div className="flex items-start justify-between">
         <div>
-          <h1 className="text-3xl mb-3">{DEFAULT_PROJECT_NAME}</h1>
+          <h1 className="text-3xl mb-3">Multi-Tenancy Platform</h1>
           <div className="flex items-center gap-3 mb-3">
-            <Badge variant="secondary">SUM-2026</Badge>
+            <Badge variant="secondary">MTP-2026</Badge>
             <Badge className="bg-green-500">On Track</Badge>
             <Badge variant="outline">Software Development</Badge>
           </div>
@@ -786,7 +867,7 @@ export default function ProjectDetails({ onBack, onManageWorkflows, onProjectSet
           <AlertDialogHeader>
             <AlertDialogTitle>Delete this project?</AlertDialogTitle>
             <AlertDialogDescription>
-              This will permanently delete "{DEFAULT_PROJECT_NAME}" and all of its
+              This will permanently delete "Multi-Tenancy Platform" and all of its
               updates, milestones, and escalations. This action cannot be undone.
             </AlertDialogDescription>
           </AlertDialogHeader>
@@ -804,16 +885,60 @@ export default function ProjectDetails({ onBack, onManageWorkflows, onProjectSet
 
       {/* 52 Week Timeline */}
       <div className="space-y-4">
-        <div className="flex items-baseline justify-between">
-          <h2 className="text-lg font-semibold">52 Week Timeline</h2>
-          <p className="text-sm text-muted-foreground">
-            Week <span className="font-medium text-foreground">{CURRENT_WEEK}</span> of {TOTAL_WEEKS}
-            <span className="mx-1.5">·</span>
-            {weeksRemaining} remaining
-          </p>
+        <div className="flex flex-wrap items-end justify-between gap-3">
+          <div>
+            <h2 className="text-lg font-semibold">52 Week Timeline</h2>
+            <p className="text-sm text-muted-foreground">
+              {timelineYear} · {timelineStatusText}
+            </p>
+          </div>
+          <div className="flex flex-wrap items-center gap-2">
+            <Button
+              variant="outline"
+              size="sm"
+              className="h-8 gap-1.5"
+              onClick={() => shiftTimelineYear(-1)}
+              disabled={!canMoveToPreviousYear}
+            >
+              <ChevronLeft className="w-3.5 h-3.5" />
+              Year
+            </Button>
+            <Select value={String(timelineYear)} onValueChange={(value) => handleTimelineYearChange(Number(value))}>
+              <SelectTrigger className="h-8 w-[104px]">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                {timelineYears.map((year) => (
+                  <SelectItem key={year} value={String(year)}>
+                    {year}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+            <Button
+              variant="outline"
+              size="sm"
+              className="h-8 gap-1.5"
+              onClick={() => shiftTimelineYear(1)}
+              disabled={!canMoveToNextYear}
+            >
+              Year
+              <ChevronRight className="w-3.5 h-3.5" />
+            </Button>
+            <Button
+              variant="secondary"
+              size="sm"
+              className="h-8 gap-1.5"
+              onClick={jumpToCurrentWeek}
+              disabled={timelineYear === CURRENT_TIMELINE_YEAR && selectedWeek === CURRENT_WEEK}
+            >
+              <RotateCcw className="w-3.5 h-3.5" />
+              Current Week
+            </Button>
+          </div>
         </div>
         <Card className="p-4">
-          <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
+          <div className="mb-3 flex flex-wrap items-center justify-between gap-3">
             <div className="flex gap-3 text-xs text-muted-foreground">
               <div className="flex items-center gap-1">
                 <div className="w-2 h-2 bg-green-500 rounded-full" />
@@ -840,6 +965,32 @@ export default function ProjectDetails({ onBack, onManageWorkflows, onProjectSet
                 <span>Current</span>
               </div>
             </div>
+            <div className="flex items-center gap-2">
+              <Button
+                variant="outline"
+                size="sm"
+                className="h-7 px-2 gap-1"
+                onClick={() => shiftSelectedWeek(-1)}
+                disabled={!canMoveToPreviousWeek}
+              >
+                <ChevronLeft className="w-3.5 h-3.5" />
+                Week
+              </Button>
+              <div className="min-w-[124px] text-center">
+                <p className="text-xs font-medium">Week {selectedWeek}</p>
+                <p className="text-[10px] text-muted-foreground">{selectedWeekRange}</p>
+              </div>
+              <Button
+                variant="outline"
+                size="sm"
+                className="h-7 px-2 gap-1"
+                onClick={() => shiftSelectedWeek(1)}
+                disabled={!canMoveToNextWeek}
+              >
+                Week
+                <ChevronRight className="w-3.5 h-3.5" />
+              </Button>
+            </div>
           </div>
 
           <div className="flex w-full gap-1.5 min-h-[120px]">
@@ -863,7 +1014,7 @@ export default function ProjectDetails({ onBack, onManageWorkflows, onProjectSet
           </div>
 
           <p className="mt-3 text-xs text-muted-foreground">
-            Select any week to open its status update.
+            Select any week to open its status update. Use the year selector to view past annual timelines.
           </p>
         </Card>
       </div>
@@ -1074,7 +1225,10 @@ export default function ProjectDetails({ onBack, onManageWorkflows, onProjectSet
                 <button
                   key={idx}
                   type="button"
-                  onClick={() => handleWeekSelect(update.week)}
+                  onClick={() => {
+                    setTimelineYear(CURRENT_TIMELINE_YEAR);
+                    handleWeekSelect(update.week);
+                  }}
                   aria-label={`View full update for week ${update.week}, ${update.date}`}
                   className="w-full text-left border rounded-lg p-4 transition-colors cursor-pointer hover:bg-accent/50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
                 >

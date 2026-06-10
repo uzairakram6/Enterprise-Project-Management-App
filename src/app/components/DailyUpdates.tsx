@@ -1,4 +1,4 @@
-import React, { useMemo, useState } from "react";
+import { useMemo, useState } from "react";
 import { format, isToday, parseISO, subDays } from "date-fns";
 import { toast } from "sonner";
 import {
@@ -11,7 +11,10 @@ import {
   ClipboardList,
   ChevronLeft,
   ChevronRight,
+  ChevronsUpDown,
+  Check,
   Eye,
+  CornerDownRight,
 } from "lucide-react";
 import { Card } from "./ui/card";
 import { Button } from "./ui/button";
@@ -26,6 +29,15 @@ import {
   SelectTrigger,
   SelectValue,
 } from "./ui/select";
+import {
+  Command,
+  CommandEmpty,
+  CommandGroup,
+  CommandInput,
+  CommandItem,
+  CommandList,
+  CommandSeparator,
+} from "./ui/command";
 import {
   Table,
   TableBody,
@@ -46,93 +58,28 @@ import {
   DialogTitle,
 } from "./ui/dialog";
 import { cn } from "./ui/utils";
-import { PROJECTS } from "../data/projects";
+import {
+  MAX_TASK_DEPTH,
+  PROJECTS,
+  getDepth,
+  getTaskPath,
+  newTaskId,
+  type Task,
+} from "../data/tasks";
 
-const STORAGE_KEY = "daily-updates-sessions";
-const SUBTASKS_STORAGE_KEY = "daily-updates-subtasks";
-const CREATE_SUBTASK_VALUE = "__create_subtask__";
+const STORAGE_KEY = "daily-updates-sessions-v2";
 const DESC_MAX = 500;
-
-const projectIcons = ["🤖", "♻️", "💬", "📅", "🛡️", "📦"];
-const projectBgs = [
-  "bg-blue-100 text-blue-600",
-  "bg-green-100 text-green-600",
-  "bg-purple-100 text-purple-600",
-  "bg-amber-100 text-amber-600",
-  "bg-red-100 text-red-600",
-  "bg-cyan-100 text-cyan-600",
-];
-
-const projects = PROJECTS.slice(0, 6).map((project, index) => ({
-  id: ["sumhuman", "gts", "bilingual", "friday", "cis-ca", "dmg"][index],
-  name: project.name,
-  type: index < 2 ? "Internal Project" : "Client Project",
-  icon: projectIcons[index],
-  iconBg: projectBgs[index],
-}));
-
-const tasksByProject: Record<string, string[]> = {
-  sumhuman: ["User Onboarding", "API Integration", "Database Schema", "Bug Fixes", "Workflow Setup"],
-  gts: ["Route Optimization", "Fleet Tracking", "Dispatch UI", "Sensor Integration", "Reporting"],
-  bilingual: ["NLP Pipeline", "Intent Training", "Voice Integration", "Testing", "Deployment"],
-  friday: ["Scheduling Engine", "Calendar Sync", "Notifications", "Mobile UI", "Analytics"],
-  "cis-ca": ["Compliance Rules", "Audit Logs", "Role Management", "Document Vault", "Reporting"],
-  dmg: ["Data Migration", "ETL Pipelines", "Validation Suite", "Rollback Plan", "Monitoring"],
-};
-
-const defaultSubtasksByTask: Record<string, string[]> = {
-  "sumhuman::User Onboarding": ["Signup flow", "Role assignment", "Welcome emails"],
-  "sumhuman::API Integration": ["Auth endpoints", "Error handling", "Rate limiting"],
-  "sumhuman::Database Schema": ["Tenant columns", "RLS policies", "Migration scripts"],
-  "gts::Route Optimization": ["Map API setup", "Algorithm tuning", "Driver app hooks"],
-  "gts::Fleet Tracking": ["GPS ingestion", "Live map UI", "Alert rules"],
-  "bilingual::NLP Pipeline": ["Tokenizer setup", "Language detection", "Response templates"],
-  "friday::Scheduling Engine": ["Recurrence rules", "Conflict detection", "Timezone handling"],
-  "cis-ca::Compliance Rules": ["Policy engine", "Rule editor", "Audit triggers"],
-  "dmg::Data Migration": ["Source mapping", "Batch jobs", "Validation checks"],
-};
-
-function taskKey(projectId: string, task: string) {
-  return `${projectId}::${task}`;
-}
-
-function loadCustomSubtasks(): Record<string, string[]> {
-  try {
-    const raw = localStorage.getItem(SUBTASKS_STORAGE_KEY);
-    if (raw) return JSON.parse(raw);
-  } catch {
-    // ignore
-  }
-  return {};
-}
-
-function saveCustomSubtasks(data: Record<string, string[]>) {
-  try {
-    localStorage.setItem(SUBTASKS_STORAGE_KEY, JSON.stringify(data));
-  } catch {
-    // ignore
-  }
-}
-
-function getSubtasksForTask(
-  projectId: string,
-  task: string,
-  customSubtasks: Record<string, string[]>
-): string[] {
-  if (!task) return [];
-  const key = taskKey(projectId, task);
-  const defaults = defaultSubtasksByTask[key] ?? [];
-  const custom = customSubtasks[key] ?? [];
-  return [...new Set([...defaults, ...custom])];
-}
-
 const hourOptions = [1, 2, 3, 4, 5, 6, 7, 8];
+
+interface DailyUpdatesProps {
+  tasks: Task[];
+  onTasksChange: (tasks: Task[]) => void;
+}
 
 interface UpdateEntry {
   id: string;
   projectId: string;
-  task: string;
-  subtask: string;
+  taskId: string;
   description: string;
   hoursSpent: number;
   status: "draft" | "submitted";
@@ -156,12 +103,10 @@ function dateKey(date: Date) {
 }
 
 function createEntry(projectId: string, overrides?: Partial<UpdateEntry>): UpdateEntry {
-  const tasks = tasksByProject[projectId] ?? [];
   return {
     id: crypto.randomUUID(),
     projectId,
-    task: tasks[0] ?? "",
-    subtask: "",
+    taskId: "",
     description: "",
     hoursSpent: 2,
     status: "draft",
@@ -177,19 +122,17 @@ function getDefaultSessions(): Record<string, DailySession> {
       date: yesterday,
       submittedAt: `${yesterday}T18:30:00.000Z`,
       entries: [
-        createEntry("sumhuman", {
+        createEntry("mtp", {
           id: "y1",
-          task: "Database Schema",
-          subtask: "RLS policies",
+          taskId: "mt-db-rls-users",
           description: "Added tenant_id to users table and implemented row-level security policies.",
           hoursSpent: 5,
           status: "submitted",
         }),
-        createEntry("gts", {
+        createEntry("portal", {
           id: "y2",
-          task: "Route Optimization",
-          subtask: "Map API setup",
-          description: "Integrated routing API and validated fleet dispatch paths.",
+          taskId: "cp-ui-forms-inputs",
+          description: "Built customer profile card and input wrapper components.",
           hoursSpent: 3,
           status: "submitted",
         }),
@@ -202,10 +145,9 @@ function normalizeSession(raw: Partial<DailySession>, date: string): DailySessio
   return {
     date,
     entries: Array.isArray(raw.entries)
-      ? raw.entries.map((e) => ({
-          ...e,
-          subtask: e.subtask ?? "",
-        }))
+      ? raw.entries
+          .filter((e) => typeof e.taskId === "string" || e.taskId === "")
+          .map((e) => ({ ...e, taskId: e.taskId ?? "" }))
       : [],
     submittedAt: raw.submittedAt,
   };
@@ -243,19 +185,114 @@ function getSessionForDate(
   return sessions[date] ?? { date, entries: [] };
 }
 
-export default function DailyUpdates() {
+/** Flat, searchable picker over the full task hierarchy of one project.
+ *  Tasks at any depth appear in a single list with their breadcrumb path —
+ *  no tree navigation during data entry. */
+function TaskPicker({
+  entry,
+  tasks,
+  onPick,
+  onCreateSubtask,
+}: {
+  entry: UpdateEntry;
+  tasks: Task[];
+  onPick: (taskId: string) => void;
+  onCreateSubtask: () => void;
+}) {
+  const [open, setOpen] = useState(false);
+  const projectTasks = tasks.filter((t) => t.projectId === entry.projectId);
+  const selected = tasks.find((t) => t.id === entry.taskId);
+
+  return (
+    <Popover open={open} onOpenChange={setOpen}>
+      <PopoverTrigger asChild>
+        <Button
+          variant="outline"
+          role="combobox"
+          className="w-full justify-between font-normal h-auto min-h-9 py-1.5"
+        >
+          {selected ? (
+            <span className="flex flex-col items-start min-w-0">
+              <span className="text-sm truncate w-full text-left">{selected.title}</span>
+              {selected.parentId && (
+                <span className="text-[10px] text-muted-foreground truncate w-full text-left">
+                  {getTaskPath(tasks, selected.id)}
+                </span>
+              )}
+            </span>
+          ) : (
+            <span className="text-muted-foreground">Select task...</span>
+          )}
+          <ChevronsUpDown className="ml-2 h-3.5 w-3.5 shrink-0 opacity-50" />
+        </Button>
+      </PopoverTrigger>
+      <PopoverContent className="p-0 w-[340px]" align="start">
+        <Command>
+          <CommandInput placeholder="Search tasks at any level..." />
+          <CommandList>
+            <CommandEmpty>No tasks found.</CommandEmpty>
+            <CommandGroup>
+              {projectTasks.map((task) => {
+                const path = getTaskPath(tasks, task.id);
+                return (
+                  <CommandItem
+                    key={task.id}
+                    value={`${path} ${task.title}`}
+                    onSelect={() => {
+                      onPick(task.id);
+                      setOpen(false);
+                    }}
+                  >
+                    <Check
+                      className={cn(
+                        "mr-2 h-3.5 w-3.5 shrink-0",
+                        entry.taskId === task.id ? "opacity-100" : "opacity-0"
+                      )}
+                    />
+                    <div className="min-w-0">
+                      <p className="text-sm truncate">{task.title}</p>
+                      {path && (
+                        <p className="text-[10px] text-muted-foreground truncate flex items-center gap-1">
+                          <CornerDownRight className="w-2.5 h-2.5 shrink-0" />
+                          {path}
+                        </p>
+                      )}
+                    </div>
+                  </CommandItem>
+                );
+              })}
+            </CommandGroup>
+            <CommandSeparator />
+            <CommandGroup>
+              <CommandItem
+                onSelect={() => {
+                  setOpen(false);
+                  onCreateSubtask();
+                }}
+                className="text-primary font-medium"
+              >
+                <Plus className="mr-2 h-3.5 w-3.5" />
+                Create subtask...
+              </CommandItem>
+            </CommandGroup>
+          </CommandList>
+        </Command>
+      </PopoverContent>
+    </Popover>
+  );
+}
+
+export default function DailyUpdates({ tasks, onTasksChange }: DailyUpdatesProps) {
   const [sessions, setSessions] = useState<Record<string, DailySession>>(() => loadSessions());
-  const [customSubtasks, setCustomSubtasks] = useState<Record<string, string[]>>(() => loadCustomSubtasks());
   const [selectedDate, setSelectedDate] = useState<Date>(new Date());
   const [activeTab, setActiveTab] = useState<"today" | "history">("today");
   const [calendarOpen, setCalendarOpen] = useState(false);
   const [subtaskModal, setSubtaskModal] = useState<{
-    open: boolean;
     projectId: string;
-    task: string;
     entryId: string;
+    parentId: string;
+    name: string;
   } | null>(null);
-  const [newSubtaskName, setNewSubtaskName] = useState("");
 
   const currentKey = dateKey(selectedDate);
   const isViewingToday = isToday(selectedDate);
@@ -302,7 +339,7 @@ export default function DailyUpdates() {
 
   const addProjectRow = () => {
     const usedProjectIds = session.entries.map((e) => e.projectId);
-    const nextProject = projects.find((p) => !usedProjectIds.includes(p.id)) ?? projects[0];
+    const nextProject = PROJECTS.find((p) => !usedProjectIds.includes(p.id)) ?? PROJECTS[0];
     updateSession({
       entries: [...session.entries, createEntry(nextProject.id)],
     });
@@ -325,11 +362,9 @@ export default function DailyUpdates() {
   };
 
   const handleSubmitAll = () => {
-    const incomplete = session.entries.filter(
-      (e) => !e.task || !e.subtask || !e.description.trim()
-    );
+    const incomplete = session.entries.filter((e) => !e.taskId || !e.description.trim());
     if (incomplete.length > 0) {
-      toast.error("Please fill in task, sub task, and description for all rows before submitting");
+      toast.error("Please select a task and add a description for all rows before submitting");
       return;
     }
     if (session.entries.length === 0) {
@@ -355,96 +390,52 @@ export default function DailyUpdates() {
     setSelectedDate((d) => (direction === -1 ? subDays(d, 1) : subDays(d, -1)));
   };
 
-  const openCreateSubtaskModal = (projectId: string, task: string, entryId: string) => {
-    if (!task) {
-      toast.error("Select a task first before creating a sub task");
-      return;
-    }
-    setNewSubtaskName("");
-    setSubtaskModal({ open: true, projectId, task, entryId });
+  const openCreateSubtaskModal = (entry: UpdateEntry) => {
+    setSubtaskModal({
+      projectId: entry.projectId,
+      entryId: entry.id,
+      // Default parent: currently selected task, so "create subtask" nests under it.
+      parentId: entry.taskId || "",
+      name: "",
+    });
   };
 
   const handleCreateSubtask = () => {
     if (!subtaskModal) return;
-    const name = newSubtaskName.trim();
+    const name = subtaskModal.name.trim();
     if (!name) {
-      toast.error("Enter a sub task name");
+      toast.error("Enter a subtask name");
       return;
     }
 
-    const key = taskKey(subtaskModal.projectId, subtaskModal.task);
-    const existing = getSubtasksForTask(subtaskModal.projectId, subtaskModal.task, customSubtasks);
-    if (existing.some((s) => s.toLowerCase() === name.toLowerCase())) {
-      toast.error("This sub task already exists");
+    const parentId = subtaskModal.parentId || null;
+    if (parentId && getDepth(tasks, parentId) + 1 >= MAX_TASK_DEPTH) {
+      toast.error(`Max depth (${MAX_TASK_DEPTH} levels) reached for this branch`);
       return;
     }
 
-    const updated = {
-      ...customSubtasks,
-      [key]: [...(customSubtasks[key] ?? []), name],
+    const parent = parentId ? tasks.find((t) => t.id === parentId) : null;
+    const newTask: Task = {
+      id: newTaskId(),
+      projectId: subtaskModal.projectId,
+      parentId,
+      title: name,
+      assignees: parent?.assignees ?? [],
+      priority: "medium",
+      labels: [],
+      status: "doing",
+      createdBy: "Hamza Khan (PM)",
+      createdAt: new Date().toISOString().split("T")[0],
     };
-    setCustomSubtasks(updated);
-    saveCustomSubtasks(updated);
-    updateEntry(subtaskModal.entryId, { subtask: name });
+    onTasksChange([...tasks, newTask]);
+    updateEntry(subtaskModal.entryId, { taskId: newTask.id });
     setSubtaskModal(null);
-    setNewSubtaskName("");
-    toast.success("Sub task created and selected");
-  };
-
-  const renderSubtaskCell = (entry: UpdateEntry) => {
-    const subtasks = getSubtasksForTask(entry.projectId, entry.task, customSubtasks);
-
-    if (isReadOnly) {
-      return <span className="text-sm">{entry.subtask || "—"}</span>;
-    }
-
-    if (!entry.task) {
-      return <span className="text-xs text-muted-foreground">Select task first</span>;
-    }
-
-    return (
-      <Select
-        key={`${entry.id}-${entry.task}-${subtasks.length}`}
-        value={entry.subtask || undefined}
-        onValueChange={(val) => {
-          if (val === CREATE_SUBTASK_VALUE) {
-            openCreateSubtaskModal(entry.projectId, entry.task, entry.id);
-            return;
-          }
-          updateEntry(entry.id, { subtask: val });
-        }}
-      >
-        <SelectTrigger className="w-full">
-          <SelectValue placeholder="Select sub task" />
-        </SelectTrigger>
-        <SelectContent>
-          {subtasks.length === 0 && (
-            <SelectItem value="__none__" disabled className="text-muted-foreground">
-              No sub tasks yet
-            </SelectItem>
-          )}
-          {subtasks.map((subtask) => (
-            <SelectItem key={subtask} value={subtask}>
-              {subtask}
-            </SelectItem>
-          ))}
-          <SelectItem
-            value={CREATE_SUBTASK_VALUE}
-            className="text-primary font-medium border-t mt-1 focus:text-primary"
-          >
-            <span className="flex items-center gap-1.5">
-              <Plus className="w-3.5 h-3.5" />
-              Create sub task
-            </span>
-          </SelectItem>
-        </SelectContent>
-      </Select>
-    );
+    toast.success(parent ? `Subtask created under "${parent.title}"` : "Top-level task created");
   };
 
   const renderEntryRow = (entry: UpdateEntry) => {
-    const project = projects.find((p) => p.id === entry.projectId)!;
-    const tasks = tasksByProject[entry.projectId] ?? [];
+    const project = PROJECTS.find((p) => p.id === entry.projectId) ?? PROJECTS[0];
+    const selectedTask = tasks.find((t) => t.id === entry.taskId);
 
     return (
       <TableRow key={entry.id} className="hover:bg-muted/30">
@@ -460,30 +451,25 @@ export default function DailyUpdates() {
           </div>
         </TableCell>
 
-        <TableCell className="align-top py-4 min-w-[160px]">
+        <TableCell className="align-top py-4 min-w-[240px]">
           {isReadOnly ? (
-            <span className="text-sm">{entry.task}</span>
+            <div>
+              <p className="text-sm">{selectedTask?.title ?? "—"}</p>
+              {selectedTask?.parentId && (
+                <p className="text-[10px] text-muted-foreground flex items-center gap-1 mt-0.5">
+                  <CornerDownRight className="w-2.5 h-2.5 shrink-0" />
+                  {getTaskPath(tasks, selectedTask.id)}
+                </p>
+              )}
+            </div>
           ) : (
-            <Select
-              value={entry.task}
-              onValueChange={(val) => updateEntry(entry.id, { task: val, subtask: "" })}
-            >
-              <SelectTrigger className="w-full">
-                <SelectValue placeholder="Select task" />
-              </SelectTrigger>
-              <SelectContent>
-                {tasks.map((task) => (
-                  <SelectItem key={task} value={task}>
-                    {task}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
+            <TaskPicker
+              entry={entry}
+              tasks={tasks}
+              onPick={(taskId) => updateEntry(entry.id, { taskId })}
+              onCreateSubtask={() => openCreateSubtaskModal(entry)}
+            />
           )}
-        </TableCell>
-
-        <TableCell className="align-top py-4 min-w-[160px]">
-          {renderSubtaskCell(entry)}
         </TableCell>
 
         <TableCell className="align-top py-4 min-w-[280px]">
@@ -567,6 +553,10 @@ export default function DailyUpdates() {
     );
   };
 
+  const modalProjectTasks = subtaskModal
+    ? tasks.filter((t) => t.projectId === subtaskModal.projectId)
+    : [];
+
   return (
     <div className="space-y-6 max-w-[1400px]">
       {/* Header */}
@@ -574,7 +564,7 @@ export default function DailyUpdates() {
         <div>
           <h1 className="text-2xl font-bold">Daily Updates – Multiple Projects</h1>
           <p className="text-sm text-muted-foreground mt-1">
-            Log your daily work across all assigned projects in one place
+            Log your daily work across all assigned projects in one place — pick any task at any nesting level
           </p>
         </div>
         {!isReadOnly && (
@@ -675,9 +665,8 @@ export default function DailyUpdates() {
                   <TableHeader>
                     <TableRow className="bg-muted/40 hover:bg-muted/40">
                       <TableHead className="font-semibold">Project</TableHead>
-                      <TableHead className="font-semibold">Task</TableHead>
-                      <TableHead className="font-semibold">Sub task</TableHead>
-                      <TableHead className="font-semibold">Description of Task</TableHead>
+                      <TableHead className="font-semibold">Task (any level)</TableHead>
+                      <TableHead className="font-semibold">Description of Work</TableHead>
                       <TableHead className="font-semibold">Hours Spent</TableHead>
                       <TableHead className="font-semibold">Status</TableHead>
                       <TableHead className="font-semibold w-[60px]">Action</TableHead>
@@ -758,7 +747,6 @@ export default function DailyUpdates() {
                         View Details
                       </Button>
                     </div>
-
                   </Card>
                 );
               })}
@@ -767,43 +755,62 @@ export default function DailyUpdates() {
         </TabsContent>
       </Tabs>
 
-      <Dialog
-        open={!!subtaskModal?.open}
-        onOpenChange={(open) => {
-          if (!open) {
-            setSubtaskModal(null);
-            setNewSubtaskName("");
-          }
-        }}
-      >
+      {/* Create subtask — parent can be any existing task at any depth */}
+      <Dialog open={!!subtaskModal} onOpenChange={(open) => !open && setSubtaskModal(null)}>
         <DialogContent className="sm:max-w-md">
           <DialogHeader>
-            <DialogTitle>Create sub task</DialogTitle>
+            <DialogTitle>Create Subtask</DialogTitle>
             <DialogDescription>
-              Add a new sub task under{" "}
-              <span className="font-medium text-foreground">{subtaskModal?.task}</span>
+              New tasks appear instantly in the picker — nest them under any existing task.
             </DialogDescription>
           </DialogHeader>
-          <div className="space-y-2 py-2">
-            <Label htmlFor="subtask-name">Sub task name</Label>
-            <Input
-              id="subtask-name"
-              placeholder="e.g. Implement login validation"
-              value={newSubtaskName}
-              onChange={(e) => setNewSubtaskName(e.target.value)}
-              onKeyDown={(e) => e.key === "Enter" && handleCreateSubtask()}
-            />
-            {subtaskModal && (
-              <p className="text-xs text-muted-foreground">
-                Project: {projects.find((p) => p.id === subtaskModal.projectId)?.name}
-              </p>
-            )}
-          </div>
+          {subtaskModal && (
+            <div className="space-y-4 py-2">
+              <div className="space-y-2">
+                <Label>Parent task</Label>
+                <Select
+                  value={subtaskModal.parentId || "__root__"}
+                  onValueChange={(val) =>
+                    setSubtaskModal({ ...subtaskModal, parentId: val === "__root__" ? "" : val })
+                  }
+                >
+                  <SelectTrigger>
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="__root__">No parent (top-level task)</SelectItem>
+                    {modalProjectTasks.map((task) => {
+                      const path = getTaskPath(tasks, task.id);
+                      return (
+                        <SelectItem key={task.id} value={task.id}>
+                          {path ? `${path} › ${task.title}` : task.title}
+                        </SelectItem>
+                      );
+                    })}
+                  </SelectContent>
+                </Select>
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="subtask-name">Subtask name</Label>
+                <Input
+                  id="subtask-name"
+                  placeholder="e.g. Implement login validation"
+                  value={subtaskModal.name}
+                  autoFocus
+                  onChange={(e) => setSubtaskModal({ ...subtaskModal, name: e.target.value })}
+                  onKeyDown={(e) => e.key === "Enter" && handleCreateSubtask()}
+                />
+                <p className="text-xs text-muted-foreground">
+                  Project: {PROJECTS.find((p) => p.id === subtaskModal.projectId)?.name}
+                </p>
+              </div>
+            </div>
+          )}
           <DialogFooter>
             <Button variant="outline" onClick={() => setSubtaskModal(null)}>
               Cancel
             </Button>
-            <Button onClick={handleCreateSubtask}>Create sub task</Button>
+            <Button onClick={handleCreateSubtask}>Create</Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
